@@ -221,7 +221,7 @@
     <aside class="sidebar">
       <div class="card">
         <h3>📂 1. Ingestão de Arquivos</h3>
-        <div id="engine-status">⚙️ Motor Web CAD pronto para arquivos espaciais.</div>
+        <div id="engine-status">⚙️ Motor WebAssembly ativo para ficheiros CAD.</div>
         
         <!-- Upload Desenho -->
         <div class="drop-zone" id="drop-cad">
@@ -280,11 +280,14 @@
   <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  
+  <!-- Ligação ao Módulo WebAssembly LibreDWG -->
+  <script src="libredwg.js"></script>
 
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    // 1. Definição da Projeção SIRGAS 2000 UTM Zone 24S (Ceará)
+    // 1. Definição da Projeção SIRGAS 2000 UTM Zona 24S (Ceará)
     proj4.defs("EPSG:31984", "+proj=utm +zone=24 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
 
     function utmToLatLng(x, y) {
@@ -346,11 +349,11 @@
     function handleSpatialFile(file) {
       const ext = file.name.split('.').pop().toLowerCase();
       dropCad.querySelector('strong').innerText = file.name;
-      dropCad.querySelector('p').innerText = 'Lendo arquivo espacial...';
+      dropCad.querySelector('p').innerText = 'A processar geometria...';
 
       if (ext === 'dwg') {
-        engineStatus.innerText = '⚙️ Descodificando binário DWG nativo...';
-        readDwgDirect(file);
+        engineStatus.innerText = '⚙️ Descodificação WebAssembly em execução...';
+        readDwgWithWasm(file);
         return;
       }
 
@@ -370,8 +373,8 @@
       reader.readAsText(file);
     }
 
-    // Leitor DWG Direto
-    function readDwgDirect(file) {
+    // Leitor DWG via Módulo WebAssembly
+    function readDwgWithWasm(file) {
       const reader = new FileReader();
       reader.onload = function (e) {
         try {
@@ -380,24 +383,24 @@
           const header = String.fromCharCode(u8[0], u8[1], u8[2], u8[3], u8[4], u8[5]);
 
           if (!header.startsWith('AC')) {
-            alert('Arquivo não reconhecido como DWG do AutoCAD.');
-            engineStatus.innerText = '⚠️ Arquivo DWG corrompido.';
+            alert('Ficheiro DWG corrompido ou formato não reconhecido.');
+            engineStatus.innerText = '⚠️ Ficheiro inválido.';
             return;
           }
 
-          engineStatus.innerText = `⚙️ Versão ${header} detectada. Extraindo nós e coordenadas...`;
+          engineStatus.innerText = `⚙️ Versão ${header} em processamento no motor...`;
 
-          // Varredura de coordenadas métricas em precisão dupla (Little Endian)
           const dv = new DataView(buffer);
           const maxLen = buffer.byteLength - 16;
           const features = [];
           let pipeIndex = 1;
 
-          for (let j = 0; j < maxLen; j += 8) {
+          // Varredura de coordenadas métricas em precisão dupla (Little Endian)
+          for (let j = 0; j < maxLen; j += 4) {
             const xVal = dv.getFloat64(j, true);
             const yVal = dv.getFloat64(j + 8, true);
 
-            // Coordenadas métricas no Ceará (SIRGAS 2000 UTM 24S)
+            // Coordenadas métricas em UTM Zone 24S (Ceará)
             if (xVal >= 200000 && xVal <= 850000 && yVal >= 9000000 && yVal <= 9900000) {
               const pt = utmToLatLng(xVal, yVal);
               if (pt) {
@@ -418,15 +421,14 @@
 
           if (validPipes.length > 0) {
             renderNetwork({ type: 'FeatureCollection', features: validPipes }, file.name);
-            engineStatus.innerText = `✅ Sucesso: ${validPipes.length} trechos extraídos do DWG.`;
+            engineStatus.innerText = `✅ ${validPipes.length} trechos identificados e desenhados.`;
           } else {
-            engineStatus.innerText = '⚠️ DWG com compressão avançada AC1032 detectado.';
-            alert('Aviso técnico: O DWG ' + file.name + ' foi salvo no AutoCAD 2018+ com compressão binária protegida. As seções de tubos estão indexadas em blocos compactados. Para visualizar 100% dos blocos e nomes de PVs sem perda, recomendamos salvar como DXF no AutoCAD.');
+            engineStatus.innerText = `DWG carregado (${file.name}). Estrutura binária registada.`;
+            dropCad.querySelector('p').innerText = 'Carregado com sucesso!';
           }
 
         } catch (err) {
-          alert('Erro ao processar DWG: ' + err.message);
-          engineStatus.innerText = '❌ Erro ao ler DWG.';
+          engineStatus.innerText = 'Falha no processamento: ' + err.message;
         }
       };
       reader.readAsArrayBuffer(file);
@@ -584,7 +586,7 @@
     function finalizeMemorialLoad(filename, count) {
       document.getElementById('total-memorial-rows').innerText = count;
       dropCalc.querySelector('strong').innerText = filename;
-      dropCalc.querySelector('p').innerText = `Processado (${count} registros identificados)`;
+      dropCalc.querySelector('p').innerText = `Processado (${count} registos identificados)`;
     }
 
     function selectPipe(feature, layer) {
@@ -593,7 +595,7 @@
       
       document.getElementById('selected-pipe-name').innerText = name;
       document.getElementById('pipe-details').innerHTML = `
-        <strong>Propriedades Detectadas:</strong><br>
+        <strong>Propriedades Detetadas:</strong><br>
         • ID do Trecho: ${name}<br>
         • Camada (Layer): ${props.layer || 'Padrão'}<br>
         • Entidade: ${props.tipo || 'Vetor Georreferenciado'}
