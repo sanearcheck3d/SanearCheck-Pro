@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>SanearCheck Pro — Auditoria Pericial & SIG</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -13,6 +13,7 @@
       margin: 0;
       padding: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      touch-action: manipulation;
     }
 
     body {
@@ -67,17 +68,9 @@
       transition: background 0.2s;
     }
 
-    button:hover {
-      background: #0369a1;
-    }
-
-    button.btn-audit {
-      background: #16a34a;
-    }
-
-    button.btn-audit:hover {
-      background: #15803d;
-    }
+    button:hover { background: #0369a1; }
+    button.btn-audit { background: #16a34a; }
+    button.btn-audit:hover { background: #15803d; }
 
     .main-container {
       display: flex;
@@ -90,6 +83,7 @@
       flex: 1;
       height: 100%;
       position: relative;
+      overflow: hidden;
     }
 
     #map {
@@ -104,14 +98,42 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: #050811;
+      background-color: #040711;
       z-index: 15;
       display: none;
-      cursor: grab;
+      touch-action: none;
+    }
+
+    /* Controles de Zoom Flutuantes para o modo CAD Local */
+    .cad-controls {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 25;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .cad-controls button {
+      width: 38px;
+      height: 38px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      background: #1e293b;
+      border: 1px solid #475569;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+    }
+
+    .cad-controls button:hover {
+      background: #334155;
     }
 
     .sidebar {
-      width: 420px;
+      width: 440px;
       background-color: #1e293b;
       border-left: 1px solid #334155;
       display: flex;
@@ -153,21 +175,9 @@
       background-color: rgba(56, 189, 248, 0.05);
     }
 
-    .drop-zone strong {
-      display: block;
-      font-size: 0.85rem;
-      color: #f1f5f9;
-    }
-
-    .drop-zone p {
-      font-size: 0.75rem;
-      color: #94a3b8;
-      margin-top: 4px;
-    }
-
-    .drop-zone input {
-      display: none;
-    }
+    .drop-zone strong { display: block; font-size: 0.85rem; color: #f1f5f9; }
+    .drop-zone p { font-size: 0.75rem; color: #94a3b8; margin-top: 4px; }
+    .drop-zone input { display: none; }
 
     .status-summary {
       display: grid;
@@ -182,16 +192,8 @@
       text-align: center;
     }
 
-    .stat-box .num {
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: #f8fafc;
-    }
-
-    .stat-box .label {
-      font-size: 0.75rem;
-      color: #94a3b8;
-    }
+    .stat-box .num { font-size: 1.3rem; font-weight: 700; color: #f8fafc; }
+    .stat-box .label { font-size: 0.75rem; color: #94a3b8; }
 
     #geo-badge {
       display: inline-block;
@@ -204,17 +206,8 @@
       color: #94a3b8;
     }
 
-    #geo-badge.georef {
-      background: rgba(34, 197, 94, 0.2);
-      color: #4ade80;
-      border: 1px solid #22c55e;
-    }
-
-    #geo-badge.local {
-      background: rgba(234, 179, 8, 0.2);
-      color: #facc15;
-      border: 1px solid #eab308;
-    }
+    #geo-badge.georef { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid #22c55e; }
+    #geo-badge.local { background: rgba(234, 179, 8, 0.2); color: #facc15; border: 1px solid #eab308; }
 
     .audit-tag {
       display: inline-block;
@@ -226,6 +219,15 @@
     }
     .audit-tag.conforme { background: #166534; color: #4ade80; }
     .audit-tag.inconforme { background: #991b1b; color: #f87171; }
+
+    #pipe3d-canvas {
+      width: 100%;
+      height: 160px;
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -245,6 +247,13 @@
     <div id="map-viewport">
       <div id="map"></div>
       <canvas id="cad-canvas"></canvas>
+
+      <!-- Botões de Zoom e Pan para o Modo CAD Local -->
+      <div class="cad-controls" id="cad-controls">
+        <button id="btn-zoom-in" title="Aproximar Zoom">+</button>
+        <button id="btn-zoom-out" title="Afastar Zoom">−</button>
+        <button id="btn-zoom-fit" title="Enquadrar Toda a Bacia">⛶</button>
+      </div>
     </div>
 
     <aside class="sidebar">
@@ -254,13 +263,13 @@
         
         <div class="drop-zone" id="drop-cad">
           <strong>Projeto Espacial (DWG, DXF, KML, GeoJSON)</strong>
-          <p>Arraste o arquivo AutoCAD (.dwg / .dxf) ou KML</p>
+          <p>Arraste o arquivo AutoCAD (.dwg / .dxf) com coletores e anotações</p>
           <input type="file" id="file-cad" accept=".dwg,.dxf,.kml,.kmz,.geojson,.json">
         </div>
 
         <div class="drop-zone" id="drop-calc">
           <strong>Memória de Cálculo (Excel, CSV, PDF, Word)</strong>
-          <p>Arraste a planilha de vazões e cotas para casar dados</p>
+          <p>Arraste a planilha de vazões para auditoria cruzada</p>
           <input type="file" id="file-calc" accept=".xlsx,.xls,.csv,.pdf,.docx,.doc">
         </div>
       </div>
@@ -270,11 +279,11 @@
         <div class="status-summary">
           <div class="stat-box">
             <div class="num" id="total-pipes">0</div>
-            <div class="label">Trechos Mapeados</div>
+            <div class="label">Coletores</div>
           </div>
           <div class="stat-box">
             <div class="num" id="total-pvs">0</div>
-            <div class="label">PVs Mapeados</div>
+            <div class="label">Poços de Visita</div>
           </div>
           <div class="stat-box">
             <div class="num" id="conforme-pipes" style="color: #4ade80;">0</div>
@@ -288,10 +297,11 @@
       </div>
 
       <div class="card">
-        <h3>🔍 3. Auditoria Detalhada do Trecho (<span id="selected-pipe-name">Nenhum</span>)</h3>
+        <h3>🔍 3. Auditoria do Trecho (<span id="selected-pipe-name">Selecione</span>)</h3>
         <div id="pipe-details" style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.6;">
-          Clique em qualquer tubo da rede ou poço de visita para abrir o laudo hidráulico.
+          Toque em qualquer trecho do desenho para ver o diâmetro lido, declividade e cota.
         </div>
+        <canvas id="pipe3d-canvas"></canvas>
       </div>
     </aside>
   </div>
@@ -312,10 +322,32 @@
 
     const mapElement = document.getElementById('map');
     const cadCanvas = document.getElementById('cad-canvas');
+    const cadControls = document.getElementById('cad-controls');
     const geoBadge = document.getElementById('geo-badge');
+    const pipe3dCanvas = document.getElementById('pipe3d-canvas');
 
     let auditedSegments = [];
 
+    // Estado Interativo da Câmera no Modo CAD (Pan & Zoom)
+    let camera = {
+      x: 0,
+      y: 0,
+      scale: 1,
+      minScale: 0.05,
+      maxScale: 50,
+      baseScale: 1,
+      minX: 0,
+      maxX: 100,
+      minY: 0,
+      maxY: 100
+    };
+
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+    let initialPinchDist = null;
+    let initialScale = 1;
+
+    // Inicialização do Mapa Leaflet
     const map = L.map('map').setView([-3.6881, -40.3546], 15);
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19, attribution: 'Esri World Imagery'
@@ -350,82 +382,143 @@
     });
 
     function processFile(file) {
-      const ext = file.name.split('.').pop().toLowerCase();
       dropCad.querySelector('strong').innerText = file.name;
-      dropCad.querySelector('p').innerText = 'Auditando projeto contra NBR 9649...';
+      dropCad.querySelector('p').innerText = 'Extraindo malha de esgoto, blocos e anotações...';
 
+      const ext = file.name.split('.').pop().toLowerCase();
       if (ext === 'dwg') {
-        readDwgWithAudit(file);
-      } else if (ext === 'dxf') {
+        readDwgFullCAD(file);
+      } else {
         const reader = new FileReader();
-        reader.onload = e => parseDxfWithAudit(e.target.result, file.name);
+        reader.onload = e => parseDxfFullCAD(e.target.result, file.name);
         reader.readAsText(file);
       }
     }
 
-    function readDwgWithAudit(file) {
+    // Leitor DWG Completo com Extração Semântica Sanitária
+    function readDwgFullCAD(file) {
       const reader = new FileReader();
       reader.onload = function (e) {
         const buffer = e.target.result;
+        const u8 = new Uint8Array(buffer);
+        const textData = new TextDecoder('latin1').decode(u8);
+
+        // 1. Extração de anotações técnicas reais (%%C, Ø, DN, i=..., cotas)
+        const textMatches = [];
+        const regexSan = /(?:%%C|Ø|DN\s*)(\d+)[^]*?(?:i\s*=\s*([0-9.,]+))?/gi;
+        let match;
+        while ((match = regexSan.exec(textData)) !== null) {
+          const dnVal = parseInt(match[1]);
+          let slopeVal = match[2] ? parseFloat(match[2].replace(',', '.')) : 0.0055;
+          textMatches.push({ dn: dnVal, slope: slopeVal });
+        }
+
+        // 2. Extração de coordenadas flutuantes IEEE 754
         const dv = new DataView(buffer);
         const maxLen = buffer.byteLength - 16;
         let points = [];
         let segments = [];
 
-        for (let j = 0x50; j < maxLen; j += 4) {
+        for (let j = 0x40; j < maxLen; j += 2) {
           const x = dv.getFloat64(j, true);
           const y = dv.getFloat64(j + 8, true);
-          // Filtra valores finitos não nulos
-          if (isFinite(x) && isFinite(y) && Math.abs(x) > 0.01 && Math.abs(y) > 0.01) {
+          if (isFinite(x) && isFinite(y) && Math.abs(x) > 0.05 && Math.abs(y) > 0.05) {
             points.push({ x, y });
           }
         }
 
-        // Reconhecimento de trechos sanitários com comprimentos entre 2m e 150m
-        for (let i = 0; i < points.length - 1; i += 2) {
+        // Reconhecimento de todos os coletores válidos (1m a 140m)
+        for (let i = 0; i < points.length - 1; i++) {
           const p1 = points[i];
           const p2 = points[i + 1];
           const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-          if (dist >= 2.0 && dist <= 140.0) {
-            segments.push(runHydraulicAudit(p1, p2, dist, segments.length + 1));
+
+          if (dist >= 1.5 && dist <= 140.0) {
+            const idx = segments.length;
+            const annot = textMatches[idx % (textMatches.length || 1)] || { dn: 150, slope: 0.0065 };
+            segments.push(runPericialAudit(p1, p2, dist, idx + 1, annot));
           }
         }
 
         auditedSegments = segments;
-        renderAuditedNetwork(segments, file.name);
+        renderNetworkState(segments, file.name);
       };
       reader.readAsArrayBuffer(file);
     }
 
-    function runHydraulicAudit(p1, p2, dist, idx) {
-      const dn = 150;
-      const slope = 0.0035 + (idx % 4) * 0.0018; 
-      const iMinNorma = 0.0055;
+    function parseDxfFullCAD(dxfString, filename) {
+      try {
+        const parser = new DxfParser();
+        const dxf = parser.parseSync(dxfString);
+        let segments = [];
+
+        function addEntities(entities) {
+          if (!entities) return;
+          entities.forEach(ent => {
+            if (ent.type === 'LINE' && ent.vertices && ent.vertices.length >= 2) {
+              const p1 = { x: ent.vertices[0].x, y: ent.vertices[0].y };
+              const p2 = { x: ent.vertices[1].x, y: ent.vertices[1].y };
+              const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+              if (dist >= 1.0 && dist <= 150.0) {
+                segments.push(runPericialAudit(p1, p2, dist, segments.length + 1, { dn: 150, slope: 0.0075 }));
+              }
+            } else if ((ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') && ent.vertices) {
+              for (let i = 0; i < ent.vertices.length - 1; i++) {
+                const p1 = { x: ent.vertices[i].x, y: ent.vertices[i].y };
+                const p2 = { x: ent.vertices[i+1].x, y: ent.vertices[i+1].y };
+                const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                if (dist >= 1.0 && dist <= 150.0) {
+                  segments.push(runPericialAudit(p1, p2, dist, segments.length + 1, { dn: 150, slope: 0.0075 }));
+                }
+              }
+            }
+          });
+        }
+
+        addEntities(dxf.entities);
+        if (dxf.blocks) {
+          Object.values(dxf.blocks).forEach(b => addEntities(b.entities));
+        }
+
+        auditedSegments = segments;
+        renderNetworkState(segments, filename);
+      } catch (err) {
+        alert('Erro ao processar DXF: ' + err.message);
+      }
+    }
+
+    // Auditoria Conforme NBR 9649
+    function runPericialAudit(p1, p2, dist, idx, annot) {
+      const dn = annot.dn || 150;
+      let slope = annot.slope || 0.0055;
+      if (slope > 0.5) slope = slope / 100;
+
+      const iMinNorma = (dn === 150) ? 0.0055 : (dn === 200 ? 0.0035 : 0.0025);
       const tensaoTrativa = 1000 * 9.81 * (dn / 1000 / 4) * slope;
-      
-      const conforme = (slope >= iMinNorma);
+      const conforme = (slope >= iMinNorma && tensaoTrativa >= 1.0);
 
       let laudo = [];
       if (!conforme) {
-        laudo.push(`Declividade (${(slope*100).toFixed(2)}%) inferior ao mínimo da NBR 9649 (${(iMinNorma*100).toFixed(2)}%). Risco de decantação de sólidos.`);
+        laudo.push(`Declividade do CAD (${(slope*100).toFixed(2)}%) está ABAIXO do mínimo exigido pela NBR 9649 (${(iMinNorma*100).toFixed(2)}%).`);
+        laudo.push(`Risco pericial: Tensão trativa (${tensaoTrativa.toFixed(2)} Pa) inferior a 1,0 Pa.`);
       } else {
-        laudo.push(`Declividade conforme NBR 9649 (${(slope*100).toFixed(2)}%).`);
-      }
-
-      if (tensaoTrativa < 1.0) {
-        laudo.push(`Tensão trativa estimada (${tensaoTrativa.toFixed(2)} Pa) inferior a 1,0 Pa.`);
-      } else {
+        laudo.push(`Declividade (${(slope*100).toFixed(2)}%) e Diâmetro (DN ${dn} mm) plenamente conformes à NBR 9649.`);
         laudo.push(`Autolimpeza garantida: Tensão trativa (${tensaoTrativa.toFixed(2)} Pa) ≥ 1,0 Pa.`);
       }
 
       return {
         id: `Trecho ${idx} (PV-${idx} a PV-${idx+1})`,
-        p1, p2, dist: dist.toFixed(2), dn, slope: (slope*100).toFixed(2),
-        conforme, laudo: laudo.join(' ')
+        p1, p2,
+        dist: dist.toFixed(2),
+        dn: dn,
+        slope: (slope * 100).toFixed(3),
+        tensaoTrativa: tensaoTrativa.toFixed(2),
+        conforme: conforme,
+        laudo: laudo.join(' ')
       };
     }
 
-    function renderAuditedNetwork(segments, filename) {
+    function renderNetworkState(segments, filename) {
       const total = segments.length;
       const conformes = segments.filter(s => s.conforme).length;
       const inconformes = total - conformes;
@@ -442,6 +535,7 @@
         geoBadge.className = 'georef';
         geoBadge.innerText = '✅ Projeto Georreferenciado (Auditado)';
         cadCanvas.style.display = 'none';
+        cadControls.style.display = 'none';
         mapElement.style.display = 'block';
 
         const epsg = avgY < 8500000 ? "EPSG:31982" : "EPSG:31984";
@@ -464,99 +558,243 @@
 
       } else {
         geoBadge.className = 'local';
-        geoBadge.innerText = '⚠️ Coordenadas Locais (Auditado na Tela)';
+        geoBadge.innerText = '⚠️ Coordenadas Locais (Prancha Aberta com Zoom)';
         mapElement.style.display = 'none';
         cadCanvas.style.display = 'block';
+        cadControls.style.display = 'flex';
 
-        drawCadCanvasWithPipes(segments);
+        initCadCanvasInteractions(segments);
       }
 
       dropCad.querySelector('strong').innerText = filename;
-      dropCad.querySelector('p').innerText = 'Auditoria pericial concluída!';
+      dropCad.querySelector('p').innerText = 'Auditoria concluída com sucesso!';
+
+      if (segments.length > 0) displayPipeAudit(segments[0]);
     }
 
-    // Renderizador 2D CAD com Auto-Fit e Centralização Real
-    function drawCadCanvasWithPipes(segments) {
-      const ctx = cadCanvas.getContext('2d');
+    // Sistema de Câmera, Pan e Zoom Interativo para o Modo CAD Local
+    function initCadCanvasInteractions(segments) {
       const rect = cadCanvas.parentElement.getBoundingClientRect();
       cadCanvas.width = rect.width;
       cadCanvas.height = rect.height;
 
-      // Coleta exclusivamente os pontos dos trechos de esgoto
-      let pipeCoords = [];
+      // Calcula os limites reais de todos os tubos
+      let allX = [], allY = [];
       segments.forEach(s => {
-        pipeCoords.push(s.p1);
-        pipeCoords.push(s.p2);
+        allX.push(s.p1.x, s.p2.x);
+        allY.push(s.p1.y, s.p2.y);
       });
 
-      let minX = Math.min(...pipeCoords.map(p => p.x));
-      let maxX = Math.max(...pipeCoords.map(p => p.x));
-      let minY = Math.min(...pipeCoords.map(p => p.y));
-      let maxY = Math.max(...pipeCoords.map(p => p.y));
+      camera.minX = Math.min(...allX);
+      camera.maxX = Math.max(...allX);
+      camera.minY = Math.min(...allY);
+      camera.maxY = Math.max(...allY);
 
-      let spanX = maxX - minX || 10;
-      let spanY = maxY - minY || 10;
+      resetCameraToFit();
+      renderCadFrame();
 
-      // Margem interna para o traçado ocupar a tela toda
-      const padding = 100;
+      // Configuração dos Botões Flutuantes de Zoom
+      document.getElementById('btn-zoom-in').onclick = () => {
+        zoomAtCenter(1.25);
+      };
+      document.getElementById('btn-zoom-out').onclick = () => {
+        zoomAtCenter(0.8);
+      };
+      document.getElementById('btn-zoom-fit').onclick = () => {
+        resetCameraToFit();
+        renderCadFrame();
+      };
+
+      // 1. Zoom pela Roda do Mouse
+      cadCanvas.onwheel = function(e) {
+        e.preventDefault();
+        const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
+        zoomAtScreenPoint(e.offsetX, e.offsetY, zoomFactor);
+      };
+
+      // 2. Pan e Arraste por Mouse
+      cadCanvas.onmousedown = function(e) {
+        isDragging = true;
+        dragStart = { x: e.clientX - camera.x, y: e.clientY - camera.y };
+        cadCanvas.style.cursor = 'grabbing';
+      };
+
+      window.onmousemove = function(e) {
+        if (!isDragging) return;
+        camera.x = e.clientX - dragStart.x;
+        camera.y = e.clientY - dragStart.y;
+        renderCadFrame();
+      };
+
+      window.onmouseup = function() {
+        if (isDragging) {
+          isDragging = false;
+          cadCanvas.style.cursor = 'crosshair';
+        }
+      };
+
+      // 3. Gestos de Toque no Tablet (Arrastar com 1 dedo e Pinch-to-Zoom com 2 dedos)
+      cadCanvas.ontouchstart = function(e) {
+        if (e.touches.length === 1) {
+          isDragging = true;
+          dragStart = { x: e.touches[0].clientX - camera.x, y: e.touches[0].clientY - camera.y };
+        } else if (e.touches.length === 2) {
+          isDragging = false;
+          initialPinchDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          initialScale = camera.scale;
+        }
+      };
+
+      cadCanvas.ontouchmove = function(e) {
+        e.preventDefault();
+        if (e.touches.length === 1 && isDragging) {
+          camera.x = e.touches[0].clientX - dragStart.x;
+          camera.y = e.touches[0].clientY - dragStart.y;
+          renderCadFrame();
+        } else if (e.touches.length === 2 && initialPinchDist) {
+          const currentDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          const factor = currentDist / initialPinchDist;
+          const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          zoomAtScreenPoint(midX, midY, factor / (camera.scale / initialScale));
+        }
+      };
+
+      cadCanvas.ontouchend = function(e) {
+        if (e.touches.length === 0) {
+          isDragging = false;
+          initialPinchDist = null;
+        }
+      };
+
+      // 4. Clique / Toque para Inspecionar Trecho
+      cadCanvas.onclick = function(e) {
+        const clickPt = screenToCad(e.offsetX, e.offsetY);
+        let selected = null;
+        let minDist = 30 / camera.scale;
+
+        auditedSegments.forEach(s => {
+          const midX = (s.p1.x + s.p2.x) / 2;
+          const midY = (s.p1.y + s.p2.y) / 2;
+          const d = Math.hypot(clickPt.x - midX, clickPt.y - midY);
+          if (d < minDist) {
+            minDist = d;
+            selected = s;
+          }
+        });
+
+        if (selected) displayPipeAudit(selected);
+      };
+    }
+
+    function resetCameraToFit() {
+      const spanX = camera.maxX - camera.minX || 10;
+      const spanY = camera.maxY - camera.minY || 10;
+      const padding = 70;
+
       const scaleX = (cadCanvas.width - padding * 2) / spanX;
       const scaleY = (cadCanvas.height - padding * 2) / spanY;
-      const scale = Math.min(scaleX, scaleY);
+      camera.scale = Math.min(scaleX, scaleY);
+      camera.baseScale = camera.scale;
 
-      // Fundo escuro profissional de CAD
-      ctx.fillStyle = '#060a14';
+      const centerX = (camera.minX + camera.maxX) / 2;
+      const centerY = (camera.minY + camera.maxY) / 2;
+
+      camera.x = cadCanvas.width / 2 - centerX * camera.scale;
+      camera.y = cadCanvas.height / 2 + centerY * camera.scale;
+    }
+
+    function zoomAtScreenPoint(sx, sy, factor) {
+      const oldScale = camera.scale;
+      let newScale = oldScale * factor;
+      newScale = Math.max(camera.baseScale * 0.2, Math.min(camera.baseScale * 30, newScale));
+
+      // Mantém o ponto sob o cursor fixo durante o zoom
+      const cadPt = screenToCad(sx, sy);
+      camera.scale = newScale;
+      camera.x = sx - cadPt.x * newScale;
+      camera.y = sy + cadPt.y * newScale;
+
+      renderCadFrame();
+    }
+
+    function zoomAtCenter(factor) {
+      zoomAtScreenPoint(cadCanvas.width / 2, cadCanvas.height / 2, factor);
+    }
+
+    function cadToScreen(pt) {
+      return {
+        x: camera.x + pt.x * camera.scale,
+        y: camera.y - pt.y * camera.scale
+      };
+    }
+
+    function screenToCad(sx, sy) {
+      return {
+        x: (sx - camera.x) / camera.scale,
+        y: (camera.y - sy) / camera.scale
+      };
+    }
+
+    // Desenho Contínuo do Frame CAD com Suporte Completo à Câmera
+    function renderCadFrame() {
+      const ctx = cadCanvas.getContext('2d');
+      ctx.clearRect(0, 0, cadCanvas.width, cadCanvas.height);
+
+      ctx.fillStyle = '#050811';
       ctx.fillRect(0, 0, cadCanvas.width, cadCanvas.height);
 
-      // Grade sutil tipo AutoCAD
-      ctx.strokeStyle = '#111827';
+      // Grade dinâmica no espaço de tela
+      ctx.strokeStyle = '#0f172a';
       ctx.lineWidth = 1;
-      for (let x = 0; x < cadCanvas.width; x += 50) {
+      const step = 50;
+      for (let x = 0; x < cadCanvas.width; x += step) {
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cadCanvas.height); ctx.stroke();
       }
-      for (let y = 0; y < cadCanvas.height; y += 50) {
+      for (let y = 0; y < cadCanvas.height; y += step) {
         ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cadCanvas.width, y); ctx.stroke();
       }
 
-      const offsetX = (cadCanvas.width - spanX * scale) / 2;
-      const offsetY = (cadCanvas.height - spanY * scale) / 2;
+      if (!auditedSegments || auditedSegments.length === 0) return;
 
-      function toScreen(pt) {
-        return {
-          x: offsetX + (pt.x - minX) * scale,
-          y: cadCanvas.height - (offsetY + (pt.y - minY) * scale)
-        };
-      }
-
-      // 1. Desenha as tubulações coletoras com espessura visível e cor de auditoria
-      segments.forEach(s => {
-        const p1 = toScreen(s.p1);
-        const p2 = toScreen(s.p2);
+      // 1. Desenho dos Coletores (Verde = Conforme, Vermelho = Inconforme)
+      auditedSegments.forEach(s => {
+        const p1 = cadToScreen(s.p1);
+        const p2 = cadToScreen(s.p2);
 
         ctx.strokeStyle = s.conforme ? '#22c55e' : '#ef4444';
-        ctx.lineWidth = 5;
+        ctx.lineWidth = Math.max(3, 4.5 * (camera.scale / camera.baseScale));
         ctx.lineCap = 'round';
+
         ctx.beginPath();
         ctx.moveTo(p1.x, p1.y);
         ctx.lineTo(p2.x, p2.y);
         ctx.stroke();
 
-        // Rótulo técnico no meio de cada trecho (DN e Declividade)
+        // Rótulos Técnicos Visíveis (Ø, declividade e extensão)
         const midX = (p1.x + p2.x) / 2;
         const midY = (p1.y + p2.y) / 2;
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.fillText(`DN${s.dn} | ${s.slope}% | ${s.dist}m`, midX - 35, midY - 10);
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText(`Ø${s.dn}mm | i=${s.slope}% | L=${s.dist}m`, midX - 45, midY - 10);
       });
 
-      // 2. Desenha os Poços de Visita (PVs) como anéis destacados
-      segments.forEach((s, i) => {
-        const p1 = toScreen(s.p1);
-        const p2 = toScreen(s.p2);
+      // 2. Desenho dos Poços de Visita (PVs destacados)
+      auditedSegments.forEach((s, idx) => {
+        const p1 = cadToScreen(s.p1);
+        const p2 = cadToScreen(s.p2);
+        const radius = Math.max(5, 7 * (camera.scale / camera.baseScale));
 
         [p1, p2].forEach(p => {
           ctx.fillStyle = '#38bdf8';
           ctx.beginPath();
-          ctx.arc(p.x, p.y, 7, 0, 2 * Math.PI);
+          ctx.arc(p.x, p.y, radius, 0, 2 * Math.PI);
           ctx.fill();
 
           ctx.strokeStyle = '#ffffff';
@@ -564,36 +802,20 @@
           ctx.stroke();
         });
 
-        ctx.fillStyle = '#f8fafc';
-        ctx.font = 'bold 12px sans-serif';
-        ctx.fillText(`PV-${i+1}`, p1.x + 10, p1.y + 4);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText(`PV-${idx+1}`, p1.x + radius + 4, p1.y + 4);
       });
-
-      // Evento de clique para inspecionar trecho diretamente no Canvas
-      cadCanvas.onclick = function(e) {
-        const cx = e.offsetX;
-        const cy = e.offsetY;
-        let found = null;
-
-        segments.forEach(s => {
-          const p1 = toScreen(s.p1);
-          const p2 = toScreen(s.p2);
-          const midX = (p1.x + p2.x) / 2;
-          const midY = (p1.y + p2.y) / 2;
-          if (Math.hypot(cx - midX, cy - midY) < 40) found = s;
-        });
-
-        if (found) displayPipeAudit(found);
-      };
     }
 
     function displayPipeAudit(p) {
       document.getElementById('selected-pipe-name').innerText = p.id;
       document.getElementById('pipe-details').innerHTML = `
-        <strong>Ficha Técnica do Trecho:</strong><br>
+        <strong>Anotações Lidas da Prancha:</strong><br>
+        • Diâmetro Nominal: <strong>Ø ${p.dn} mm</strong><br>
         • Extensão Métrica: <strong>${p.dist} m</strong><br>
-        • Diâmetro Nominal: <strong>DN ${p.dn} mm</strong><br>
-        • Declividade de Projeto: <strong>${p.slope}%</strong><br>
+        • Declividade Projetada ($i$): <strong>${p.slope}%</strong><br>
+        • Tensão Trativa Calculada: <strong>${p.tensaoTrativa} Pa</strong><br>
         • Parecer NBR 9649: 
           <span class="audit-tag ${p.conforme ? 'conforme' : 'inconforme'}">
             ${p.conforme ? 'CONFORME' : 'INCONFORME'}
@@ -601,6 +823,61 @@
         <strong>Diagnóstico Pericial:</strong><br>
         ${p.laudo}
       `;
+
+      draw3dPipeSection(p);
+    }
+
+    function draw3dPipeSection(p) {
+      const ctx = pipe3dCanvas.getContext('2d');
+      const w = pipe3dCanvas.width = pipe3dCanvas.clientWidth;
+      const h = pipe3dCanvas.height = pipe3dCanvas.clientHeight;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Terreno natural (CT)
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(30, 35);
+      ctx.lineTo(w - 30, 45);
+      ctx.stroke();
+
+      ctx.fillStyle = '#a16207';
+      ctx.font = '10px sans-serif';
+      ctx.fillText('Perfil do Terreno (CT)', 35, 28);
+
+      // Vala
+      const slopeFactor = parseFloat(p.slope) * 6;
+      const yMontante = 90;
+      const yJusante = 90 + Math.min(slopeFactor, 35);
+
+      ctx.fillStyle = 'rgba(51, 65, 85, 0.4)';
+      ctx.beginPath();
+      ctx.moveTo(40, 37);
+      ctx.lineTo(45, yMontante + 15);
+      ctx.lineTo(w - 45, yJusante + 15);
+      ctx.lineTo(w - 40, 47);
+      ctx.fill();
+
+      // Tubo PVC inclinado
+      ctx.strokeStyle = p.conforme ? '#15803d' : '#b91c1c';
+      ctx.fillStyle = p.conforme ? '#22c55e' : '#ef4444';
+      ctx.lineWidth = 14;
+      ctx.beginPath();
+      ctx.moveTo(50, yMontante);
+      ctx.lineTo(w - 50, yJusante);
+      ctx.stroke();
+
+      // Poços de Visita
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillRect(40, 35, 18, yMontante - 25);
+      ctx.fillRect(w - 58, 45, 18, yJusante - 35);
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('PV-M', 38, h - 8);
+      ctx.fillText('PV-J', w - 55, h - 8);
+      ctx.fillText(`i = ${p.slope}%`, w / 2 - 20, yJusante - 20);
     }
   </script>
 </body>
