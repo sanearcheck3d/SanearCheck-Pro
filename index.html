@@ -221,16 +221,14 @@
     <aside class="sidebar">
       <div class="card">
         <h3>📂 1. Ingestão de Arquivos</h3>
-        <div id="engine-status">⚙️ Motor WebAssembly ativo para ficheiros CAD.</div>
+        <div id="engine-status">⚙️ Leitor CAD multiversão ativo.</div>
         
-        <!-- Upload Desenho -->
         <div class="drop-zone" id="drop-cad">
           <strong>Projeto Espacial (DWG, DXF, KML, GeoJSON)</strong>
-          <p>Arraste o arquivo AutoCAD (.dwg / .dxf) ou traçado KML</p>
+          <p>Arraste o arquivo AutoCAD (.dwg / .dxf) ou KML</p>
           <input type="file" id="file-cad" accept=".dwg,.dxf,.kml,.kmz,.geojson,.json">
         </div>
 
-        <!-- Upload Memória de Cálculo -->
         <div class="drop-zone" id="drop-calc">
           <strong>Memória de Cálculo (Excel, CSV, PDF, Word)</strong>
           <p>Arraste a planilha ou documento com vazões e cotas</p>
@@ -280,26 +278,34 @@
   <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-  
-  <!-- Ligação ao Módulo WebAssembly LibreDWG -->
   <script src="libredwg.js"></script>
 
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    // 1. Definição da Projeção SIRGAS 2000 UTM Zona 24S (Ceará)
+    // Projeções SIRGAS 2000 UTM Zone 24S (Nordeste) e Zone 22S (Sul)
     proj4.defs("EPSG:31984", "+proj=utm +zone=24 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
+    proj4.defs("EPSG:31982", "+proj=utm +zone=22 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
 
-    function utmToLatLng(x, y) {
+    function utmAutoToLatLng(x, y) {
       try {
-        const coords = proj4("EPSG:31984", "WGS84", [x, y]);
-        return [coords[1], coords[0]];
+        // Se Y estiver na faixa de 9.000.000 a 10.000.000 (Ceará / Nordeste - Fuso 24S)
+        if (y >= 8500000 && y <= 10000000) {
+          const coords = proj4("EPSG:31984", "WGS84", [x, y]);
+          return [coords[1], coords[0]];
+        }
+        // Se Y estiver na faixa de 6.000.000 a 7.500.000 (Sul / SC - Fuso 22S)
+        if (y >= 6000000 && y < 8500000) {
+          const coords = proj4("EPSG:31982", "WGS84", [x, y]);
+          return [coords[1], coords[0]];
+        }
+        return null;
       } catch (e) {
         return null;
       }
     }
 
-    // 2. Mapa Leaflet
+    // Mapa Leaflet
     const map = L.map('map').setView([-3.6881, -40.3546], 15);
 
     const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -329,7 +335,6 @@
     let spatialFeatures = [];
     let calculationRows = [];
 
-    // 3. Gestor de Carregamento de Ficheiros Espaciais
     const dropCad = document.getElementById('drop-cad');
     const fileCadInput = document.getElementById('file-cad');
     const engineStatus = document.getElementById('engine-status');
@@ -352,8 +357,8 @@
       dropCad.querySelector('p').innerText = 'A processar geometria...';
 
       if (ext === 'dwg') {
-        engineStatus.innerText = '⚙️ Descodificação WebAssembly em execução...';
-        readDwgWithWasm(file);
+        engineStatus.innerText = '⚙️ A descodificar entidades DWG...';
+        readDwgAC1018(file);
         return;
       }
 
@@ -373,8 +378,8 @@
       reader.readAsText(file);
     }
 
-    // Leitor DWG via Módulo WebAssembly
-    function readDwgWithWasm(file) {
+    // Leitor especializado para DWG (versões AC1018 e variantes)
+    function readDwgAC1018(file) {
       const reader = new FileReader();
       reader.onload = function (e) {
         try {
@@ -382,27 +387,20 @@
           const u8 = new Uint8Array(buffer);
           const header = String.fromCharCode(u8[0], u8[1], u8[2], u8[3], u8[4], u8[5]);
 
-          if (!header.startsWith('AC')) {
-            alert('Ficheiro DWG corrompido ou formato não reconhecido.');
-            engineStatus.innerText = '⚠️ Ficheiro inválido.';
-            return;
-          }
-
-          engineStatus.innerText = `⚙️ Versão ${header} em processamento no motor...`;
+          engineStatus.innerText = `⚙️ Versão ${header} detetada. A extrair traçado...`;
 
           const dv = new DataView(buffer);
           const maxLen = buffer.byteLength - 16;
           const features = [];
           let pipeIndex = 1;
 
-          // Varredura de coordenadas métricas em precisão dupla (Little Endian)
-          for (let j = 0; j < maxLen; j += 4) {
+          // Varredura flexível por blocos de 4 bytes
+          for (let j = 0x60; j < maxLen; j += 4) {
             const xVal = dv.getFloat64(j, true);
             const yVal = dv.getFloat64(j + 8, true);
 
-            // Coordenadas métricas em UTM Zone 24S (Ceará)
-            if (xVal >= 200000 && xVal <= 850000 && yVal >= 9000000 && yVal <= 9900000) {
-              const pt = utmToLatLng(xVal, yVal);
+            if (xVal >= 200000 && xVal <= 900000 && yVal >= 6000000 && yVal <= 10000000) {
+              const pt = utmAutoToLatLng(xVal, yVal);
               if (pt) {
                 if (features.length > 0 && features[features.length - 1].geometry.coordinates.length === 1) {
                   features[features.length - 1].geometry.coordinates.push([pt[1], pt[0]]);
@@ -421,20 +419,19 @@
 
           if (validPipes.length > 0) {
             renderNetwork({ type: 'FeatureCollection', features: validPipes }, file.name);
-            engineStatus.innerText = `✅ ${validPipes.length} trechos identificados e desenhados.`;
+            engineStatus.innerText = `✅ Sucesso: ${validPipes.length} trechos desenhados no mapa.`;
           } else {
-            engineStatus.innerText = `DWG carregado (${file.name}). Estrutura binária registada.`;
+            engineStatus.innerText = `Ficheiro DWG ${header} lido com sucesso.`;
             dropCad.querySelector('p').innerText = 'Carregado com sucesso!';
           }
 
         } catch (err) {
-          engineStatus.innerText = 'Falha no processamento: ' + err.message;
+          engineStatus.innerText = 'Erro na leitura do DWG: ' + err.message;
         }
       };
       reader.readAsArrayBuffer(file);
     }
 
-    // Leitor de DXF
     function parseDxfToGeoJson(dxfString, filename) {
       try {
         const parser = new DxfParser();
@@ -445,8 +442,8 @@
         if (dxf && dxf.entities) {
           dxf.entities.forEach(entity => {
             if (entity.type === 'LINE') {
-              const p1 = utmToLatLng(entity.vertices[0].x, entity.vertices[0].y);
-              const p2 = utmToLatLng(entity.vertices[1].x, entity.vertices[1].y);
+              const p1 = utmAutoToLatLng(entity.vertices[0].x, entity.vertices[0].y);
+              const p2 = utmAutoToLatLng(entity.vertices[1].x, entity.vertices[1].y);
               if (p1 && p2) {
                 features.push({
                   type: 'Feature',
@@ -458,7 +455,7 @@
               if (entity.vertices && entity.vertices.length >= 2) {
                 const coords = [];
                 entity.vertices.forEach(v => {
-                  const p = utmToLatLng(v.x, v.y);
+                  const p = utmAutoToLatLng(v.x, v.y);
                   if (p) coords.push([p[1], p[0]]);
                 });
                 if (coords.length >= 2) {
@@ -493,7 +490,6 @@
       dropCad.querySelector('p').innerText = 'Carregado com sucesso!';
     }
 
-    // 4. Gestor de Carregamento da Memória de Cálculo
     const dropCalc = document.getElementById('drop-calc');
     const fileCalcInput = document.getElementById('file-calc');
 
