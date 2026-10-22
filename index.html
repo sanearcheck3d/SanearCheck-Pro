@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SanearCheck Pro — Auditoria Pericial & Georreferenciamento</title>
+
+  <!-- Leaflet CSS (Mapas) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background-color: #0f172a;
+      color: #f8fafc;
+      overflow: hidden;
+    }
+
+    /* Barra Superior */
+    header {
+      height: 60px;
+      background-color: #1e293b;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 1000;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #38bdf8;
+    }
+
+    .brand span {
+      color: #94a3b8;
+      font-weight: 400;
+      font-size: 0.85rem;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      background: #0284c7;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #0369a1;
+    }
+
+    button.btn-audit {
+      background: #16a34a;
+    }
+
+    button.btn-audit:hover {
+      background: #15803d;
+    }
+
+    /* Estrutura Principal */
+    .main-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 60px);
+      position: relative;
+    }
+
+    /* Mapa */
+    #map {
+      flex: 1;
+      height: 100%;
+      z-index: 10;
+    }
+
+    /* Painel Lateral */
+    .sidebar {
+      width: 400px;
+      background-color: #1e293b;
+      border-left: 1px solid #334155;
+      display: flex;
+      flex-direction: column;
+      z-index: 20;
+      overflow-y: auto;
+      padding: 20px;
+      gap: 20px;
+    }
+
+    .card {
+      background-color: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .card h3 {
+      font-size: 0.95rem;
+      color: #38bdf8;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Caixas de Upload */
+    .drop-zone {
+      border: 2px dashed #475569;
+      border-radius: 8px;
+      padding: 18px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background-color 0.2s;
+      margin-bottom: 10px;
+    }
+
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: #38bdf8;
+      background-color: rgba(56, 189, 248, 0.05);
+    }
+
+    .drop-zone p {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin-top: 6px;
+    }
+
+    .drop-zone input {
+      display: none;
+    }
+
+    /* Estatísticas */
+    .status-summary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .stat-box {
+      background: #1e293b;
+      padding: 10px;
+      border-radius: 6px;
+      text-align: center;
+    }
+
+    .stat-box .num {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .stat-box .label {
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+
+    /* Caixa 3D Placeholder */
+    #pipe3d-container {
+      width: 100%;
+      height: 180px;
+      background-color: #020617;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #64748b;
+      font-size: 0.8rem;
+      border: 1px dashed #334155;
+      text-align: center;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Barra Superior -->
+  <header>
+    <div class="brand">
+      SanearCheck Pro <span>| Auditoria Pericial & SIG</span>
+    </div>
+    <div class="actions">
+      <button class="btn-audit" id="btn-run-audit">⚡ Auditar Bacia</button>
+      <button id="btn-fix-project">🛠 Otimizar Projeto</button>
+      <button id="btn-export-pdf">📑 Exportar Laudo (PDF)</button>
+    </div>
+  </header>
+
+  <!-- Estrutura Principal -->
+  <div class="main-container">
+    <!-- Mapa de Satélite -->
+    <div id="map"></div>
+
+    <!-- Barra Lateral -->
+    <aside class="sidebar">
+      
+      <!-- Uploads -->
+      <div class="card">
+        <h3>📂 1. Ingestão de Arquivos</h3>
+        
+        <div class="drop-zone" id="drop-cad">
+          <strong>Projeto Espacial (KML / GeoJSON)</strong>
+          <p>Arraste o traçado da rede com os tubos e PVs</p>
+          <input type="file" id="file-cad" accept=".kml,.kmz,.geojson,.json,.dxf">
+        </div>
+
+        <div class="drop-zone" id="drop-calc">
+          <strong>Memória de Cálculo (Excel / CSV)</strong>
+          <p>Arraste a planilha com as vazões e cotas</p>
+          <input type="file" id="file-calc" accept=".xlsx,.xls,.csv">
+        </div>
+      </div>
+
+      <!-- Diagnóstico da Bacia -->
+      <div class="card">
+        <h3>📊 2. Diagnóstico da Bacia</h3>
+        <div class="status-summary">
+          <div class="stat-box">
+            <div class="num" id="total-pipes">0</div>
+            <div class="label">Trechos Mapeados</div>
+          </div>
+          <div class="stat-box">
+            <div class="num" id="conforme-pipes" style="color: #4ade80;">0</div>
+            <div class="label">Conformes</div>
+          </div>
+          <div class="stat-box">
+            <div class="num" id="inconforme-pipes" style="color: #f87171;">0</div>
+            <div class="label">Inconformes</div>
+          </div>
+          <div class="stat-box">
+            <div class="num" id="total-length">0 m</div>
+            <div class="label">Extensão Total</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detalhe do Trecho Selecionado -->
+      <div class="card">
+        <h3>🔍 3. Inspeção do Trecho (<span id="selected-pipe-name">Nenhum</span>)</h3>
+        <div id="pipe3d-container">
+          Clique em qualquer trecho do mapa para abrir a inspeção pericial
+        </div>
+        <div id="pipe-details" style="margin-top: 10px; font-size: 0.8rem; color: #cbd5e1; line-height: 1.5;">
+          Aguardando seleção...
+        </div>
+      </div>
+
+    </aside>
+  </div>
+
+  <!-- Bibliotecas: Leaflet + toGeoJSON (KML) + SheetJS (Excel) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+    // 1. Inicializar Mapa com Google Satélite (Centralizado em Sobral-CE)
+    const map = L.map('map').setView([-3.6881, -40.3546], 15);
+
+    // Camada Satélite Esri / Google
+    const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Esri World Imagery'
+    }).addTo(map);
+
+    // Camada Alternativa OpenStreetMap
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: 'OpenStreetMap'
+    });
+
+    L.control.layers({
+      "Satélite Alta Resolução": satLayer,
+      "Mapa de Ruas": osm
+    }).addTo(map);
+
+    let networkLayer = L.geoJSON(null, {
+      style: function (feature) {
+        return {
+          color: '#38bdf8',
+          weight: 4,
+          opacity: 0.95
+        };
+      },
+      onEachFeature: function (feature, layer) {
+        layer.on('click', function () {
+          selectPipe(feature, layer);
+        });
+      }
+    }).addTo(map);
+
+    // 2. Upload e Leitura do Arquivo Espacial (KML / GeoJSON)
+    const dropCad = document.getElementById('drop-cad');
+    const fileCadInput = document.getElementById('file-cad');
+
+    dropCad.addEventListener('click', () => fileCadInput.click());
+
+    dropCad.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropCad.classList.add('dragover');
+    });
+
+    dropCad.addEventListener('dragleave', () => dropCad.classList.remove('dragover'));
+
+    dropCad.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropCad.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) {
+        handleSpatialFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileCadInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleSpatialFile(e.target.files[0]);
+      }
+    });
+
+    function handleSpatialFile(file) {
+      const reader = new FileReader();
+      const ext = file.name.split('.').pop().toLowerCase();
+
+      reader.onload = function (event) {
+        const content = event.target.result;
+
+        if (ext === 'kml') {
+          const parser = new DOMParser();
+          const kmlDoc = parser.parseFromString(content, 'text/xml');
+          const geojson = toGeoJSON.kml(kmlDoc);
+          renderNetwork(geojson, file.name);
+        } else if (ext === 'geojson' || ext === 'json') {
+          const geojson = JSON.parse(content);
+          renderNetwork(geojson, file.name);
+        } else {
+          alert('Arquivo ' + ext.toUpperCase() + ' selecionado. Para esta etapa piloto, utilize KML ou GeoJSON.');
+        }
+      };
+
+      reader.readAsText(file);
+    }
+
+    function renderNetwork(geojson, filename) {
+      networkLayer.clearLayers();
+      networkLayer.addData(geojson);
+
+      // Dá zoom automático na rede carregada
+      if (networkLayer.getBounds().isValid()) {
+        map.fitBounds(networkLayer.getBounds(), { padding: [50, 50] });
+      }
+
+      const features = geojson.features || [];
+      document.getElementById('total-pipes').innerText = features.length;
+      dropCad.querySelector('strong').innerText = filename;
+      dropCad.querySelector('p').innerText = 'Carregado com sucesso!';
+    }
+
+    // 3. Seleção do Trecho ao Clicar
+    function selectPipe(feature, layer) {
+      const props = feature.properties || {};
+      const name = props.name || props.Trecho || 'Trecho Selecionado';
+      
+      document.getElementById('selected-pipe-name').innerText = name;
+      document.getElementById('pipe-details').innerHTML = `
+        <strong>Metadados Identificados:</strong><br>
+        • ID do Trecho: ${name}<br>
+        • Detalhes: ${props.description || 'Sem atributos descritivos'}<br>
+        • Geometria: Traçado ativo na bacia
+      `;
+    }
+  </script>
+</body>
+</html>
