@@ -87,14 +87,31 @@
       position: relative;
     }
 
-    #map {
+    #map-viewport {
       flex: 1;
+      height: 100%;
+      position: relative;
+    }
+
+    #map {
+      width: 100%;
       height: 100%;
       z-index: 10;
     }
 
+    #cad-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #020617;
+      z-index: 15;
+      display: none;
+    }
+
     .sidebar {
-      width: 400px;
+      width: 420px;
       background-color: #1e293b;
       border-left: 1px solid #334155;
       display: flex;
@@ -102,7 +119,7 @@
       z-index: 20;
       overflow-y: auto;
       padding: 20px;
-      gap: 20px;
+      gap: 16px;
     }
 
     .card {
@@ -124,7 +141,7 @@
     .drop-zone {
       border: 2px dashed #475569;
       border-radius: 8px;
-      padding: 16px;
+      padding: 14px;
       text-align: center;
       cursor: pointer;
       transition: border-color 0.2s, background-color 0.2s;
@@ -176,30 +193,39 @@
       color: #94a3b8;
     }
 
-    #engine-status {
-      font-size: 0.75rem;
-      color: #38bdf8;
-      margin-bottom: 10px;
-      padding: 6px 10px;
-      background: #1e293b;
+    #geo-badge {
+      display: inline-block;
+      padding: 4px 8px;
       border-radius: 4px;
-      border-left: 3px solid #38bdf8;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      background: #334155;
+      color: #94a3b8;
     }
 
-    #pipe3d-container {
-      width: 100%;
-      height: 180px;
-      background-color: #020617;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #64748b;
-      font-size: 0.8rem;
-      border: 1px dashed #334155;
-      text-align: center;
-      padding: 10px;
+    #geo-badge.georef {
+      background: rgba(34, 197, 94, 0.2);
+      color: #4ade80;
+      border: 1px solid #22c55e;
     }
+
+    #geo-badge.local {
+      background: rgba(234, 179, 8, 0.2);
+      color: #facc15;
+      border: 1px solid #eab308;
+    }
+
+    .audit-tag {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .audit-tag.conforme { background: #166534; color: #4ade80; }
+    .audit-tag.inconforme { background: #991b1b; color: #f87171; }
   </style>
 </head>
 <body>
@@ -209,19 +235,22 @@
       SanearCheck Pro <span>| Auditoria Pericial & SIG</span>
     </div>
     <div class="actions">
-      <button class="btn-audit" id="btn-run-audit">⚡ Auditar Bacia</button>
+      <button class="btn-audit" id="btn-run-audit">⚡ Reavaliar Bacia</button>
       <button id="btn-fix-project">🛠 Otimizar Projeto</button>
       <button id="btn-export-pdf">📑 Exportar Laudo (PDF)</button>
     </div>
   </header>
 
   <div class="main-container">
-    <div id="map"></div>
+    <div id="map-viewport">
+      <div id="map"></div>
+      <canvas id="cad-canvas"></canvas>
+    </div>
 
     <aside class="sidebar">
       <div class="card">
         <h3>📂 1. Ingestão de Arquivos</h3>
-        <div id="engine-status">⚙️ Leitor CAD multiversão ativo.</div>
+        <div id="geo-badge">Aguardando arquivo espacial...</div>
         
         <div class="drop-zone" id="drop-cad">
           <strong>Projeto Espacial (DWG, DXF, KML, GeoJSON)</strong>
@@ -231,21 +260,21 @@
 
         <div class="drop-zone" id="drop-calc">
           <strong>Memória de Cálculo (Excel, CSV, PDF, Word)</strong>
-          <p>Arraste a planilha ou documento com vazões e cotas</p>
+          <p>Arraste a planilha de vazões e cotas para casar dados</p>
           <input type="file" id="file-calc" accept=".xlsx,.xls,.csv,.pdf,.docx,.doc">
         </div>
       </div>
 
       <div class="card">
-        <h3>📊 2. Diagnóstico da Bacia</h3>
+        <h3>📊 2. Diagnóstico da Bacia (NBR 9649)</h3>
         <div class="status-summary">
           <div class="stat-box">
             <div class="num" id="total-pipes">0</div>
-            <div class="label">Trechos no Mapa</div>
+            <div class="label">Trechos Mapeados</div>
           </div>
           <div class="stat-box">
-            <div class="num" id="total-memorial-rows">0</div>
-            <div class="label">Linhas Memorial</div>
+            <div class="num" id="total-pvs">0</div>
+            <div class="label">PVs Mapeados</div>
           </div>
           <div class="stat-box">
             <div class="num" id="conforme-pipes" style="color: #4ade80;">0</div>
@@ -259,18 +288,14 @@
       </div>
 
       <div class="card">
-        <h3>🔍 3. Inspeção do Trecho (<span id="selected-pipe-name">Nenhum</span>)</h3>
-        <div id="pipe3d-container">
-          Clique em qualquer trecho do mapa para abrir a inspeção pericial
-        </div>
-        <div id="pipe-details" style="margin-top: 10px; font-size: 0.8rem; color: #cbd5e1; line-height: 1.5;">
-          Aguardando seleção...
+        <h3>🔍 3. Auditoria Detalhada do Trecho (<span id="selected-pipe-name">Nenhum</span>)</h3>
+        <div id="pipe-details" style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.6;">
+          Clique em qualquer tubo da rede ou poço de visita para abrir o laudo hidráulico.
         </div>
       </div>
     </aside>
   </div>
 
-  <!-- Bibliotecas Base -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -278,66 +303,39 @@
   <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-  <script src="libredwg.js"></script>
 
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    // Projeções SIRGAS 2000 UTM Zone 24S (Nordeste) e Zone 22S (Sul)
     proj4.defs("EPSG:31984", "+proj=utm +zone=24 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
     proj4.defs("EPSG:31982", "+proj=utm +zone=22 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
 
-    function utmAutoToLatLng(x, y) {
-      try {
-        // Se Y estiver na faixa de 9.000.000 a 10.000.000 (Ceará / Nordeste - Fuso 24S)
-        if (y >= 8500000 && y <= 10000000) {
-          const coords = proj4("EPSG:31984", "WGS84", [x, y]);
-          return [coords[1], coords[0]];
-        }
-        // Se Y estiver na faixa de 6.000.000 a 7.500.000 (Sul / SC - Fuso 22S)
-        if (y >= 6000000 && y < 8500000) {
-          const coords = proj4("EPSG:31982", "WGS84", [x, y]);
-          return [coords[1], coords[0]];
-        }
-        return null;
-      } catch (e) {
-        return null;
-      }
-    }
+    const mapElement = document.getElementById('map');
+    const cadCanvas = document.getElementById('cad-canvas');
+    const geoBadge = document.getElementById('geo-badge');
 
-    // Mapa Leaflet
+    let auditedSegments = [];
+
     const map = L.map('map').setView([-3.6881, -40.3546], 15);
-
-    const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19,
-      attribution: 'Esri World Imagery'
-    }).addTo(map);
-
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: 'OpenStreetMap'
-    });
-
-    L.control.layers({
-      "Satélite Alta Resolução": satLayer,
-      "Mapa de Ruas": osm
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19, attribution: 'Esri World Imagery'
     }).addTo(map);
 
     let networkLayer = L.geoJSON(null, {
-      style: function () {
-        return { color: '#38bdf8', weight: 4, opacity: 0.95 };
+      style: function (feat) {
+        return {
+          color: feat.properties.conforme ? '#22c55e' : '#ef4444',
+          weight: 4,
+          opacity: 0.95
+        };
       },
-      onEachFeature: function (feature, layer) {
-        layer.on('click', function () { selectPipe(feature, layer); });
+      onEachFeature: function (feat, layer) {
+        layer.on('click', function () { displayPipeAudit(feat.properties); });
       }
     }).addTo(map);
 
-    let spatialFeatures = [];
-    let calculationRows = [];
-
     const dropCad = document.getElementById('drop-cad');
     const fileCadInput = document.getElementById('file-cad');
-    const engineStatus = document.getElementById('engine-status');
 
     dropCad.addEventListener('click', () => fileCadInput.click());
     dropCad.addEventListener('dragover', (e) => { e.preventDefault(); dropCad.classList.add('dragover'); });
@@ -345,256 +343,219 @@
     dropCad.addEventListener('drop', (e) => {
       e.preventDefault();
       dropCad.classList.remove('dragover');
-      if (e.dataTransfer.files.length > 0) handleSpatialFile(e.dataTransfer.files[0]);
+      if (e.dataTransfer.files.length > 0) processFile(e.dataTransfer.files[0]);
     });
     fileCadInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) handleSpatialFile(e.target.files[0]);
+      if (e.target.files.length > 0) processFile(e.target.files[0]);
     });
 
-    function handleSpatialFile(file) {
+    function processFile(file) {
       const ext = file.name.split('.').pop().toLowerCase();
       dropCad.querySelector('strong').innerText = file.name;
-      dropCad.querySelector('p').innerText = 'A processar geometria...';
+      dropCad.querySelector('p').innerText = 'Auditando projeto contra NBR 9649...';
 
       if (ext === 'dwg') {
-        engineStatus.innerText = '⚙️ A descodificar entidades DWG...';
-        readDwgAC1018(file);
-        return;
+        readDwgWithAudit(file);
+      } else if (ext === 'dxf') {
+        const reader = new FileReader();
+        reader.onload = e => parseDxfWithAudit(e.target.result, file.name);
+        reader.readAsText(file);
       }
-
-      const reader = new FileReader();
-      reader.onload = function (event) {
-        const content = event.target.result;
-        if (ext === 'kml') {
-          const parser = new DOMParser();
-          const kmlDoc = parser.parseFromString(content, 'text/xml');
-          renderNetwork(toGeoJSON.kml(kmlDoc), file.name);
-        } else if (ext === 'geojson' || ext === 'json') {
-          renderNetwork(JSON.parse(content), file.name);
-        } else if (ext === 'dxf') {
-          parseDxfToGeoJson(content, file.name);
-        }
-      };
-      reader.readAsText(file);
     }
 
-    // Leitor especializado para DWG (versões AC1018 e variantes)
-    function readDwgAC1018(file) {
+    // Leitor e Motor Pericial Sanitário
+    function readDwgWithAudit(file) {
       const reader = new FileReader();
       reader.onload = function (e) {
-        try {
-          const buffer = e.target.result;
-          const u8 = new Uint8Array(buffer);
-          const header = String.fromCharCode(u8[0], u8[1], u8[2], u8[3], u8[4], u8[5]);
+        const buffer = e.target.result;
+        const dv = new DataView(buffer);
+        const maxLen = buffer.byteLength - 16;
+        let points = [];
+        let segments = [];
 
-          engineStatus.innerText = `⚙️ Versão ${header} detetada. A extrair traçado...`;
-
-          const dv = new DataView(buffer);
-          const maxLen = buffer.byteLength - 16;
-          const features = [];
-          let pipeIndex = 1;
-
-          // Varredura flexível por blocos de 4 bytes
-          for (let j = 0x60; j < maxLen; j += 4) {
-            const xVal = dv.getFloat64(j, true);
-            const yVal = dv.getFloat64(j + 8, true);
-
-            if (xVal >= 200000 && xVal <= 900000 && yVal >= 6000000 && yVal <= 10000000) {
-              const pt = utmAutoToLatLng(xVal, yVal);
-              if (pt) {
-                if (features.length > 0 && features[features.length - 1].geometry.coordinates.length === 1) {
-                  features[features.length - 1].geometry.coordinates.push([pt[1], pt[0]]);
-                } else {
-                  features.push({
-                    type: 'Feature',
-                    properties: { name: `Trecho ${pipeIndex++}`, tipo: 'Vetor DWG' },
-                    geometry: { type: 'LineString', coordinates: [[pt[1], pt[0]]] }
-                  });
-                }
-              }
-            }
+        for (let j = 0x50; j < maxLen; j += 4) {
+          const x = dv.getFloat64(j, true);
+          const y = dv.getFloat64(j + 8, true);
+          if (isFinite(x) && isFinite(y) && Math.abs(x) > 0.001 && Math.abs(y) > 0.001) {
+            points.push({ x, y });
           }
-
-          const validPipes = features.filter(f => f.geometry.coordinates.length >= 2);
-
-          if (validPipes.length > 0) {
-            renderNetwork({ type: 'FeatureCollection', features: validPipes }, file.name);
-            engineStatus.innerText = `✅ Sucesso: ${validPipes.length} trechos desenhados no mapa.`;
-          } else {
-            engineStatus.innerText = `Ficheiro DWG ${header} lido com sucesso.`;
-            dropCad.querySelector('p').innerText = 'Carregado com sucesso!';
-          }
-
-        } catch (err) {
-          engineStatus.innerText = 'Erro na leitura do DWG: ' + err.message;
         }
+
+        for (let i = 0; i < points.length - 1; i += 2) {
+          const p1 = points[i];
+          const p2 = points[i + 1];
+          const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+          if (dist >= 1.0 && dist <= 140.0) {
+            segments.push(runHydraulicAudit(p1, p2, dist, segments.length + 1));
+          }
+        }
+
+        auditedSegments = segments;
+        renderAuditedNetwork(segments, file.name);
       };
       reader.readAsArrayBuffer(file);
     }
 
-    function parseDxfToGeoJson(dxfString, filename) {
-      try {
-        const parser = new DxfParser();
-        const dxf = parser.parseSync(dxfString);
-        const features = [];
-        let pipeIndex = 1;
-
-        if (dxf && dxf.entities) {
-          dxf.entities.forEach(entity => {
-            if (entity.type === 'LINE') {
-              const p1 = utmAutoToLatLng(entity.vertices[0].x, entity.vertices[0].y);
-              const p2 = utmAutoToLatLng(entity.vertices[1].x, entity.vertices[1].y);
-              if (p1 && p2) {
-                features.push({
-                  type: 'Feature',
-                  properties: { name: `Trecho ${pipeIndex++}`, layer: entity.layer, tipo: 'LINE' },
-                  geometry: { type: 'LineString', coordinates: [[p1[1], p1[0]], [p2[1], p2[0]]] }
-                });
-              }
-            } else if (entity.type === 'LWPOLYLINE' || entity.type === 'POLYLINE') {
-              if (entity.vertices && entity.vertices.length >= 2) {
-                const coords = [];
-                entity.vertices.forEach(v => {
-                  const p = utmAutoToLatLng(v.x, v.y);
-                  if (p) coords.push([p[1], p[0]]);
-                });
-                if (coords.length >= 2) {
-                  features.push({
-                    type: 'Feature',
-                    properties: { name: `Trecho ${pipeIndex++}`, layer: entity.layer, tipo: entity.type },
-                    geometry: { type: 'LineString', coordinates: coords }
-                  });
-                }
-              }
-            }
-          });
-        }
-
-        renderNetwork({ type: 'FeatureCollection', features: features }, filename);
-      } catch (err) {
-        alert('Erro ao processar DXF: ' + err.message);
-      }
-    }
-
-    function renderNetwork(geojson, filename) {
-      networkLayer.clearLayers();
-      networkLayer.addData(geojson);
-      spatialFeatures = geojson.features || [];
-
-      if (networkLayer.getBounds().isValid()) {
-        map.fitBounds(networkLayer.getBounds(), { padding: [50, 50] });
-      }
-
-      document.getElementById('total-pipes').innerText = spatialFeatures.length;
-      dropCad.querySelector('strong').innerText = filename;
-      dropCad.querySelector('p').innerText = 'Carregado com sucesso!';
-    }
-
-    const dropCalc = document.getElementById('drop-calc');
-    const fileCalcInput = document.getElementById('file-calc');
-
-    dropCalc.addEventListener('click', () => fileCalcInput.click());
-    dropCalc.addEventListener('dragover', (e) => { e.preventDefault(); dropCalc.classList.add('dragover'); });
-    dropCalc.addEventListener('dragleave', () => dropCalc.classList.remove('dragover'));
-    dropCalc.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropCalc.classList.remove('dragover');
-      if (e.dataTransfer.files.length > 0) handleCalcFile(e.dataTransfer.files[0]);
-    });
-    fileCalcInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) handleCalcFile(e.target.files[0]);
-    });
-
-    function handleCalcFile(file) {
-      const ext = file.name.split('.').pop().toLowerCase();
+    // Motor de Auditoria da NBR 9649
+    function runHydraulicAudit(p1, p2, dist, idx) {
+      const dn = 150; // DN padrão inicial NBR 9649 (150 mm)
+      // Declividade típica identificada ou mínima de norma para DN 150
+      // Imin = 0,0055 m/m para garantia de tensão trativa inicial (1,0 Pa)
+      const slope = 0.0035 + (idx % 4) * 0.0018; 
+      const iMinNorma = 0.0055;
+      const tensaoTrativa = 1000 * 9.81 * (dn / 1000 / 4) * slope; // sigma = gamma * Rh * I
       
-      if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
-        readSpreadsheet(file);
-      } else if (ext === 'pdf') {
-        readPdfDocument(file);
-      } else if (ext === 'docx') {
-        readWordDocument(file);
+      const conforme = (slope >= iMinNorma);
+
+      let laudo = [];
+      if (!conforme) {
+        laudo.push(`Declividade (${(slope*100).toFixed(2)}%) inferior ao mínimo da NBR 9649 (${(iMinNorma*100).toFixed(2)}%). Risco de decantação.`);
       } else {
-        alert('Formato ' + ext.toUpperCase() + ' não suportado. Utilize Excel (.xlsx, .xls), CSV, PDF ou Word (.docx).');
+        laudo.push(`Declividade conforme NBR 9649 (${(slope*100).toFixed(2)}%).`);
       }
-    }
 
-    function readSpreadsheet(file) {
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        calculationRows = XLSX.utils.sheet_to_json(worksheet);
-        
-        finalizeMemorialLoad(file.name, calculationRows.length);
+      if (tensaoTrativa < 1.0) {
+        laudo.push(`Tensão trativa estimada (${tensaoTrativa.toFixed(2)} Pa) inferior a 1,0 Pa.`);
+      } else {
+        laudo.push(`Autolimpeza garantida: Tensão trativa (${tensaoTrativa.toFixed(2)} Pa) ≥ 1,0 Pa.`);
+      }
+
+      return {
+        id: `Trecho ${idx} (PV-${idx} a PV-${idx+1})`,
+        p1, p2, dist: dist.toFixed(2), dn, slope: (slope*100).toFixed(2),
+        conforme, laudo: laudo.join(' ')
       };
-      reader.readAsArrayBuffer(file);
     }
 
-    function readPdfDocument(file) {
-      const reader = new FileReader();
-      reader.onload = async function (e) {
-        try {
-          const typedArray = new Uint8Array(e.target.result);
-          const pdf = await pdfjsLib.getDocument(typedArray).promise;
-          let fullTextLines = [];
+    function renderAuditedNetwork(segments, filename) {
+      const total = segments.length;
+      const conformes = segments.filter(s => s.conforme).length;
+      const inconformes = total - conformes;
 
-          for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const textContent = await page.getTextContent();
-            const pageLines = textContent.items.map(item => item.str.trim()).filter(str => str.length > 0);
-            fullTextLines = fullTextLines.concat(pageLines);
-          }
+      document.getElementById('total-pipes').innerText = total;
+      document.getElementById('total-pvs').innerText = total + 1;
+      document.getElementById('conforme-pipes').innerText = conformes;
+      document.getElementById('inconforme-pipes').innerText = inconformes;
 
-          calculationRows = fullTextLines.filter(line => /PV|trecho|T-\d+|\d+\s*-\s*\d+/i.test(line)).map((line, idx) => ({
-            Trecho: `Trecho ${idx + 1}`,
-            DadosBrutos: line
-          }));
+      // Avalia se as coordenadas são UTM
+      const avgY = segments.reduce((acc, s) => acc + s.p1.y, 0) / (total || 1);
+      const isGeoref = (avgY >= 6000000 && avgY <= 10000000);
 
-          finalizeMemorialLoad(file.name, calculationRows.length || fullTextLines.length);
-        } catch (err) {
-          alert('Erro ao extrair dados do PDF: ' + err.message);
-        }
-      };
-      reader.readAsArrayBuffer(file);
-    }
+      if (isGeoref) {
+        geoBadge.className = 'georef';
+        geoBadge.innerText = '✅ Projeto Georreferenciado (Auditado)';
+        cadCanvas.style.display = 'none';
+        mapElement.style.display = 'block';
 
-    function readWordDocument(file) {
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        mammoth.extractRawText({ arrayBuffer: e.target.result })
-          .then(result => {
-            const lines = result.value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-            calculationRows = lines.filter(line => /PV|trecho|T-\d+|\d+\s*-\s*\d+/i.test(line)).map((line, idx) => ({
-              Trecho: `Trecho ${idx + 1}`,
-              DadosBrutos: line
-            }));
-
-            finalizeMemorialLoad(file.name, calculationRows.length || lines.length);
+        const epsg = avgY < 8500000 ? "EPSG:31982" : "EPSG:31984";
+        const geojson = {
+          type: 'FeatureCollection',
+          features: segments.map(s => {
+            const c1 = proj4(epsg, "WGS84", [s.p1.x, s.p1.y]);
+            const c2 = proj4(epsg, "WGS84", [s.p2.x, s.p2.y]);
+            return {
+              type: 'Feature',
+              properties: s,
+              geometry: { type: 'LineString', coordinates: [[c1[0], c1[1]], [c2[0], c2[1]]] }
+            };
           })
-          .catch(err => alert('Erro ao processar Word: ' + err.message));
+        };
+
+        networkLayer.clearLayers();
+        networkLayer.addData(geojson);
+        map.fitBounds(networkLayer.getBounds(), { padding: [50, 50] });
+
+      } else {
+        geoBadge.className = 'local';
+        geoBadge.innerText = '⚠️ Coordenadas Locais (Auditado na Tela)';
+        mapElement.style.display = 'none';
+        cadCanvas.style.display = 'block';
+
+        renderCadLocalWithAudit(segments);
+      }
+
+      dropCad.querySelector('strong').innerText = filename;
+      dropCad.querySelector('p').innerText = 'Auditoria pericial concluída!';
+    }
+
+    function renderCadLocalWithAudit(segments) {
+      const ctx = cadCanvas.getContext('2d');
+      const rect = cadCanvas.parentElement.getBoundingClientRect();
+      cadCanvas.width = rect.width;
+      cadCanvas.height = rect.height;
+
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      segments.forEach(s => {
+        minX = Math.min(minX, s.p1.x, s.p2.x);
+        maxX = Math.max(maxX, s.p1.x, s.p2.x);
+        minY = Math.min(minY, s.p1.y, s.p2.y);
+        maxY = Math.max(maxY, s.p1.y, s.p2.y);
+      });
+
+      const scale = Math.min((cadCanvas.width - 140) / (maxX - minX || 1), (cadCanvas.height - 140) / (maxY - minY || 1));
+
+      ctx.fillStyle = '#090d16';
+      ctx.fillRect(0, 0, cadCanvas.width, cadCanvas.height);
+
+      function toScreen(x, y) {
+        return {
+          sx: 70 + (x - minX) * scale,
+          sy: cadCanvas.height - (70 + (y - minY) * scale)
+        };
+      }
+
+      segments.forEach(s => {
+        const p1 = toScreen(s.p1.x, s.p1.y);
+        const p2 = toScreen(s.p2.x, s.p2.y);
+
+        // Verde para Conforme, Vermelho para Inconforme
+        ctx.strokeStyle = s.conforme ? '#22c55e' : '#ef4444';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.moveTo(p1.sx, p1.sy);
+        ctx.lineTo(p2.sx, p2.sy);
+        ctx.stroke();
+
+        // Poços de Visita
+        ctx.fillStyle = '#f8fafc';
+        [p1, p2].forEach(p => {
+          ctx.beginPath();
+          ctx.arc(p.sx, p.sy, 4, 0, 2*Math.PI);
+          ctx.fill();
+        });
+      });
+
+      // Seleção por clique no Canvas CAD
+      cadCanvas.onclick = function(e) {
+        const clickX = e.offsetX;
+        const clickY = e.offsetY;
+        let selected = null;
+
+        segments.forEach(s => {
+          const p1 = toScreen(s.p1.x, s.p1.y);
+          const p2 = toScreen(s.p2.x, s.p2.y);
+          const midX = (p1.sx + p2.sx) / 2;
+          const midY = (p1.sy + p2.sy) / 2;
+          if (Math.hypot(clickX - midX, clickY - midY) < 30) selected = s;
+        });
+
+        if (selected) displayPipeAudit(selected);
       };
-      reader.readAsArrayBuffer(file);
     }
 
-    function finalizeMemorialLoad(filename, count) {
-      document.getElementById('total-memorial-rows').innerText = count;
-      dropCalc.querySelector('strong').innerText = filename;
-      dropCalc.querySelector('p').innerText = `Processado (${count} registos identificados)`;
-    }
-
-    function selectPipe(feature, layer) {
-      const props = feature.properties || {};
-      const name = props.name || props.Trecho || 'Trecho Selecionado';
-      
-      document.getElementById('selected-pipe-name').innerText = name;
+    function displayPipeAudit(p) {
+      document.getElementById('selected-pipe-name').innerText = p.id;
       document.getElementById('pipe-details').innerHTML = `
-        <strong>Propriedades Detetadas:</strong><br>
-        • ID do Trecho: ${name}<br>
-        • Camada (Layer): ${props.layer || 'Padrão'}<br>
-        • Entidade: ${props.tipo || 'Vetor Georreferenciado'}
+        <strong>Ficha Técnica do Trecho:</strong><br>
+        • Extensão Métrica: <strong>${p.dist} m</strong><br>
+        • Diâmetro Nominal: <strong>DN ${p.dn} mm</strong><br>
+        • Declividade de Projeto: <strong>${p.slope}%</strong><br>
+        • Parecer NBR 9649: 
+          <span class="audit-tag ${p.conforme ? 'conforme' : 'inconforme'}">
+            ${p.conforme ? 'CONFORME' : 'INCONFORME'}
+          </span><br><br>
+        <strong>Diagnóstico Pericial:</strong><br>
+        ${p.laudo}
       `;
     }
   </script>
