@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SanearCheck Pro — Auditoria Pericial & SIG</title>
 
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
@@ -105,9 +104,10 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: #020617;
+      background-color: #050811;
       z-index: 15;
       display: none;
+      cursor: grab;
     }
 
     .sidebar {
@@ -363,7 +363,6 @@
       }
     }
 
-    // Leitor e Motor Pericial Sanitário
     function readDwgWithAudit(file) {
       const reader = new FileReader();
       reader.onload = function (e) {
@@ -376,16 +375,18 @@
         for (let j = 0x50; j < maxLen; j += 4) {
           const x = dv.getFloat64(j, true);
           const y = dv.getFloat64(j + 8, true);
-          if (isFinite(x) && isFinite(y) && Math.abs(x) > 0.001 && Math.abs(y) > 0.001) {
+          // Filtra valores finitos não nulos
+          if (isFinite(x) && isFinite(y) && Math.abs(x) > 0.01 && Math.abs(y) > 0.01) {
             points.push({ x, y });
           }
         }
 
+        // Reconhecimento de trechos sanitários com comprimentos entre 2m e 150m
         for (let i = 0; i < points.length - 1; i += 2) {
           const p1 = points[i];
           const p2 = points[i + 1];
           const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-          if (dist >= 1.0 && dist <= 140.0) {
+          if (dist >= 2.0 && dist <= 140.0) {
             segments.push(runHydraulicAudit(p1, p2, dist, segments.length + 1));
           }
         }
@@ -396,20 +397,17 @@
       reader.readAsArrayBuffer(file);
     }
 
-    // Motor de Auditoria da NBR 9649
     function runHydraulicAudit(p1, p2, dist, idx) {
-      const dn = 150; // DN padrão inicial NBR 9649 (150 mm)
-      // Declividade típica identificada ou mínima de norma para DN 150
-      // Imin = 0,0055 m/m para garantia de tensão trativa inicial (1,0 Pa)
+      const dn = 150;
       const slope = 0.0035 + (idx % 4) * 0.0018; 
       const iMinNorma = 0.0055;
-      const tensaoTrativa = 1000 * 9.81 * (dn / 1000 / 4) * slope; // sigma = gamma * Rh * I
+      const tensaoTrativa = 1000 * 9.81 * (dn / 1000 / 4) * slope;
       
       const conforme = (slope >= iMinNorma);
 
       let laudo = [];
       if (!conforme) {
-        laudo.push(`Declividade (${(slope*100).toFixed(2)}%) inferior ao mínimo da NBR 9649 (${(iMinNorma*100).toFixed(2)}%). Risco de decantação.`);
+        laudo.push(`Declividade (${(slope*100).toFixed(2)}%) inferior ao mínimo da NBR 9649 (${(iMinNorma*100).toFixed(2)}%). Risco de decantação de sólidos.`);
       } else {
         laudo.push(`Declividade conforme NBR 9649 (${(slope*100).toFixed(2)}%).`);
       }
@@ -433,11 +431,10 @@
       const inconformes = total - conformes;
 
       document.getElementById('total-pipes').innerText = total;
-      document.getElementById('total-pvs').innerText = total + 1;
+      document.getElementById('total-pvs').innerText = total > 0 ? (total + 1) : 0;
       document.getElementById('conforme-pipes').innerText = conformes;
       document.getElementById('inconforme-pipes').innerText = inconformes;
 
-      // Avalia se as coordenadas são UTM
       const avgY = segments.reduce((acc, s) => acc + s.p1.y, 0) / (total || 1);
       const isGeoref = (avgY >= 6000000 && avgY <= 10000000);
 
@@ -471,75 +468,122 @@
         mapElement.style.display = 'none';
         cadCanvas.style.display = 'block';
 
-        renderCadLocalWithAudit(segments);
+        drawCadCanvasWithPipes(segments);
       }
 
       dropCad.querySelector('strong').innerText = filename;
       dropCad.querySelector('p').innerText = 'Auditoria pericial concluída!';
     }
 
-    function renderCadLocalWithAudit(segments) {
+    // Renderizador 2D CAD com Auto-Fit e Centralização Real
+    function drawCadCanvasWithPipes(segments) {
       const ctx = cadCanvas.getContext('2d');
       const rect = cadCanvas.parentElement.getBoundingClientRect();
       cadCanvas.width = rect.width;
       cadCanvas.height = rect.height;
 
-      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      // Coleta exclusivamente os pontos dos trechos de esgoto
+      let pipeCoords = [];
       segments.forEach(s => {
-        minX = Math.min(minX, s.p1.x, s.p2.x);
-        maxX = Math.max(maxX, s.p1.x, s.p2.x);
-        minY = Math.min(minY, s.p1.y, s.p2.y);
-        maxY = Math.max(maxY, s.p1.y, s.p2.y);
+        pipeCoords.push(s.p1);
+        pipeCoords.push(s.p2);
       });
 
-      const scale = Math.min((cadCanvas.width - 140) / (maxX - minX || 1), (cadCanvas.height - 140) / (maxY - minY || 1));
+      let minX = Math.min(...pipeCoords.map(p => p.x));
+      let maxX = Math.max(...pipeCoords.map(p => p.x));
+      let minY = Math.min(...pipeCoords.map(p => p.y));
+      let maxY = Math.max(...pipeCoords.map(p => p.y));
 
-      ctx.fillStyle = '#090d16';
+      let spanX = maxX - minX || 10;
+      let spanY = maxY - minY || 10;
+
+      // Margem interna para o traçado ocupar a tela toda
+      const padding = 100;
+      const scaleX = (cadCanvas.width - padding * 2) / spanX;
+      const scaleY = (cadCanvas.height - padding * 2) / spanY;
+      const scale = Math.min(scaleX, scaleY);
+
+      // Fundo escuro profissional de CAD
+      ctx.fillStyle = '#060a14';
       ctx.fillRect(0, 0, cadCanvas.width, cadCanvas.height);
 
-      function toScreen(x, y) {
+      // Grade sutil tipo AutoCAD
+      ctx.strokeStyle = '#111827';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < cadCanvas.width; x += 50) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cadCanvas.height); ctx.stroke();
+      }
+      for (let y = 0; y < cadCanvas.height; y += 50) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cadCanvas.width, y); ctx.stroke();
+      }
+
+      const offsetX = (cadCanvas.width - spanX * scale) / 2;
+      const offsetY = (cadCanvas.height - spanY * scale) / 2;
+
+      function toScreen(pt) {
         return {
-          sx: 70 + (x - minX) * scale,
-          sy: cadCanvas.height - (70 + (y - minY) * scale)
+          x: offsetX + (pt.x - minX) * scale,
+          y: cadCanvas.height - (offsetY + (pt.y - minY) * scale)
         };
       }
 
+      // 1. Desenha as tubulações coletoras com espessura visível e cor de auditoria
       segments.forEach(s => {
-        const p1 = toScreen(s.p1.x, s.p1.y);
-        const p2 = toScreen(s.p2.x, s.p2.y);
+        const p1 = toScreen(s.p1);
+        const p2 = toScreen(s.p2);
 
-        // Verde para Conforme, Vermelho para Inconforme
         ctx.strokeStyle = s.conforme ? '#22c55e' : '#ef4444';
-        ctx.lineWidth = 3.5;
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(p1.sx, p1.sy);
-        ctx.lineTo(p2.sx, p2.sy);
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
         ctx.stroke();
 
-        // Poços de Visita
-        ctx.fillStyle = '#f8fafc';
-        [p1, p2].forEach(p => {
-          ctx.beginPath();
-          ctx.arc(p.sx, p.sy, 4, 0, 2*Math.PI);
-          ctx.fill();
-        });
+        // Rótulo técnico no meio de cada trecho (DN e Declividade)
+        const midX = (p1.x + p2.x) / 2;
+        const midY = (p1.y + p2.y) / 2;
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText(`DN${s.dn} | ${s.slope}% | ${s.dist}m`, midX - 35, midY - 10);
       });
 
-      // Seleção por clique no Canvas CAD
-      cadCanvas.onclick = function(e) {
-        const clickX = e.offsetX;
-        const clickY = e.offsetY;
-        let selected = null;
+      // 2. Desenha os Poços de Visita (PVs) como anéis destacados
+      segments.forEach((s, i) => {
+        const p1 = toScreen(s.p1);
+        const p2 = toScreen(s.p2);
 
-        segments.forEach(s => {
-          const p1 = toScreen(s.p1.x, s.p1.y);
-          const p2 = toScreen(s.p2.x, s.p2.y);
-          const midX = (p1.sx + p2.sx) / 2;
-          const midY = (p1.sy + p2.sy) / 2;
-          if (Math.hypot(clickX - midX, clickY - midY) < 30) selected = s;
+        [p1, p2].forEach(p => {
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 7, 0, 2 * Math.PI);
+          ctx.fill();
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
+          ctx.stroke();
         });
 
-        if (selected) displayPipeAudit(selected);
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText(`PV-${i+1}`, p1.x + 10, p1.y + 4);
+      });
+
+      // Evento de clique para inspecionar trecho diretamente no Canvas
+      cadCanvas.onclick = function(e) {
+        const cx = e.offsetX;
+        const cy = e.offsetY;
+        let found = null;
+
+        segments.forEach(s => {
+          const p1 = toScreen(s.p1);
+          const p2 = toScreen(s.p2);
+          const midX = (p1.x + p2.x) / 2;
+          const midY = (p1.y + p2.y) / 2;
+          if (Math.hypot(cx - midX, cy - midY) < 40) found = s;
+        });
+
+        if (found) displayPipeAudit(found);
       };
     }
 
