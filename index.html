@@ -252,18 +252,18 @@
 
     <aside class="sidebar">
       <div class="card">
-        <h3>📂 1. Ingestão de Arquivos</h3>
-        <div id="geo-badge">Aguardando arquivo espacial...</div>
+        <h3>📂 1. Ingestão de Ficheiros</h3>
+        <div id="geo-badge">Aguardando ficheiro espacial...</div>
         
         <div class="drop-zone" id="drop-cad">
-          <strong>Projeto Espacial (DWG, DXF, KML, GeoJSON)</strong>
-          <p>Arraste o arquivo AutoCAD (.dxf / .dwg)</p>
+          <strong>Projeto Espacial (DXF / DWG)</strong>
+          <p>Arraste o ficheiro AutoCAD (.dxf recomendado)</p>
           <input type="file" id="file-cad" accept=".dwg,.dxf,.kml,.kmz,.geojson,.json">
         </div>
 
         <div class="drop-zone" id="drop-calc">
           <strong>Memória de Cálculo (Excel, CSV, PDF, Word)</strong>
-          <p>Arraste a planilha de vazões para auditoria cruzada</p>
+          <p>Arraste a folha de cálculo de vazões</p>
           <input type="file" id="file-calc" accept=".xlsx,.xls,.csv,.pdf,.docx,.doc">
         </div>
       </div>
@@ -291,9 +291,9 @@
       </div>
 
       <div class="card">
-        <h3>🔍 3. Auditoria do Trecho (<span id="selected-pipe-name">Selecione</span>)</h3>
+        <h3>🔍 3. Auditoria do Troço (<span id="selected-pipe-name">Selecione</span>)</h3>
         <div id="pipe-details" style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.6;">
-          Toque em qualquer trecho do desenho para ver o diâmetro lido, declividade e cota.
+          Toque em qualquer trecho do desenho para ver o diâmetro, declividade e cota.
         </div>
         <canvas id="pipe3d-canvas"></canvas>
       </div>
@@ -324,15 +324,8 @@
     let auditedSegments = [];
     let detectedPVs = [];
 
-    let camera = {
-      x: 0, y: 0, scale: 1, baseScale: 1,
-      minX: 0, maxX: 100, minY: 0, maxY: 100
-    };
-
-    let isDragging = false;
-    let dragStart = { x: 0, y: 0 };
-    let initialPinchDist = null;
-    let initialScale = 1;
+    let camera = { x: 0, y: 0, scale: 1, baseScale: 1, minX: 0, maxX: 100, minY: 0, maxY: 100 };
+    let isDragging = false, dragStart = { x: 0, y: 0 };
 
     const map = L.map('map').setView([-28.48, -49.01], 15);
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -368,22 +361,22 @@
 
     function processFile(file) {
       dropCad.querySelector('strong').innerText = file.name;
-      dropCad.querySelector('p').innerText = 'Extraindo blocos, linhas e anotações do DXF...';
+      dropCad.querySelector('p').innerText = 'A aplicar topologia de redes no DXF...';
 
       const reader = new FileReader();
-      reader.onload = e => parseDxfDeepExtraction(e.target.result, file.name);
+      reader.onload = e => parseDxfTopological(e.target.result, file.name);
       reader.readAsText(file);
     }
 
-    // Leitor Profundo de DXF com Extração de Blocos Recursiva
-    function parseDxfDeepExtraction(dxfString, filename) {
+    // Leitor Topológico de DXF com Agrupamento de Nós (End-Points Stitching)
+    function parseDxfTopological(dxfString, filename) {
       try {
         const parser = new DxfParser();
         const dxf = parser.parseSync(dxfString);
         let rawLines = [];
         let rawTexts = [];
 
-        function extractFromEntities(entities) {
+        function scanEntities(entities) {
           if (!entities) return;
           entities.forEach(ent => {
             if (ent.type === 'LINE') {
@@ -406,45 +399,60 @@
               const pos = ent.startPoint || ent.position || (ent.vertices ? ent.vertices[0] : null) || { x: 0, y: 0 };
               rawTexts.push({ text: (ent.text || '').trim(), x: pos.x, y: pos.y });
             } else if (ent.type === 'INSERT' && ent.block && dxf.blocks && dxf.blocks[ent.block]) {
-              // Expande blocos aninhados na prancha
-              extractFromEntities(dxf.blocks[ent.block].entities);
+              scanEntities(dxf.blocks[ent.block].entities);
             }
           });
         }
 
-        extractFromEntities(dxf.entities);
+        scanEntities(dxf.entities);
         if (dxf.blocks) {
-          Object.values(dxf.blocks).forEach(b => extractFromEntities(b.entities));
+          Object.values(dxf.blocks).forEach(b => scanEntities(b.entities));
         }
 
-        buildDeepNetwork(rawLines, rawTexts, filename);
+        buildTopologicalNetwork(rawLines, rawTexts, filename);
 
       } catch (err) {
         alert('Erro ao interpretar DXF: ' + err.message);
       }
     }
 
-    function buildDeepNetwork(lines, texts, filename) {
+    // Construtor de Grafo de Conectividade Sanitária
+    function buildTopologicalNetwork(lines, texts, filename) {
       if (!lines || lines.length === 0) {
-        alert('Nenhum trecho de tubulação foi encontrado no DXF.');
+        alert('Nenhum segmento de tubulação encontrado.');
         return;
       }
 
-      let segments = [];
-      let pvs = [];
+      let nodes = [];
 
+      function findOrCreateNode(pt) {
+        let node = nodes.find(n => Math.hypot(n.x - pt.x, n.y - pt.y) < 0.6);
+        if (!node) {
+          let nodeName = `PV-${nodes.length + 1}`;
+          texts.forEach(t => {
+            if (Math.hypot(t.x - pt.x, t.y - pt.y) < 15.0 && /PV/i.test(t.text)) {
+              nodeName = t.text;
+            }
+          });
+          node = { id: nodes.length + 1, name: nodeName, x: pt.x, y: pt.y, ct: 5.5, cf: 4.25, h: 1.25 };
+          nodes.push(node);
+        }
+        return node;
+      }
+
+      let segments = [];
       lines.forEach((line, idx) => {
         const dist = Math.hypot(line.p2.x - line.p1.x, line.p2.y - line.p1.y);
+        if (dist < 1.0 || dist > 150.0) return; // Filtra ruídos
+
         const midX = (line.p1.x + line.p2.x) / 2;
         const midY = (line.p1.y + line.p2.y) / 2;
 
         let nearestText = null;
         let minDist = Infinity;
         texts.forEach(t => {
-          if (t.x !== 0 || t.y !== 0) {
-            const d = Math.hypot(t.x - midX, t.y - midY);
-            if (d < minDist) { minDist = d; nearestText = t; }
-          }
+          const d = Math.hypot(t.x - midX, t.y - midY);
+          if (d < minDist) { minDist = d; nearestText = t; }
         });
 
         let dn = 150;
@@ -459,7 +467,7 @@
 
         if (slope > 0.5) slope = slope / 100;
 
-        const iMin = (dn === 150) ? 0.0055 : (dn === 200 ? 0.0035 : 0.0025);
+        const iMin = (dn === 150) ? 0.0055 : (dn === 200 ? 0.0035 : 0.025);
         const tensaoTrativa = 1000 * 9.81 * (dn / 1000 / 4) * slope;
         const conforme = (slope >= iMin && tensaoTrativa >= 1.0);
 
@@ -472,28 +480,12 @@
           laudo.push(`Autolimpeza garantida: Tensão trativa (${tensaoTrativa.toFixed(2)} Pa) ≥ 1,0 Pa.`);
         }
 
-        function registerPV(pt) {
-          let found = pvs.find(p => Math.hypot(p.x - pt.x, p.y - pt.y) < 1.0);
-          if (!found) {
-            let pvName = `PV-${pvs.length + 1}`;
-            texts.forEach(t => {
-              if (Math.hypot(t.x - pt.x, t.y - pt.y) < 20.0 && /PV/i.test(t.text)) {
-                pvName = t.text;
-              }
-            });
-            found = { id: pvs.length + 1, name: pvName, x: pt.x, y: pt.y, ct: 5.5, cf: 4.25, h: 1.25 };
-            pvs.push(found);
-          }
-          return found;
-        }
-
-        const pvA = registerPV(line.p1);
-        const pvB = registerPV(line.p2);
+        const pvA = findOrCreateNode(line.p1);
+        const pvB = findOrCreateNode(line.p2);
 
         segments.push({
-          id: `Trecho ${idx + 1} (${pvA.name} a ${pvB.name})`,
-          p1: line.p1,
-          p2: line.p2,
+          id: `Troço ${segments.length + 1} (${pvA.name} a ${pvB.name})`,
+          p1: line.p1, p2: line.p2,
           pvA, pvB,
           dist: dist.toFixed(2),
           dn,
@@ -505,9 +497,9 @@
       });
 
       auditedSegments = segments;
-      detectedPVs = pvs;
+      detectedPVs = nodes;
 
-      renderExtractedProject(segments, pvs, filename);
+      renderExtractedProject(segments, nodes, filename);
     }
 
     function renderExtractedProject(segments, pvs, filename) {
@@ -575,7 +567,7 @@
       }
 
       dropCad.querySelector('strong').innerText = filename;
-      dropCad.querySelector('p').innerText = 'Auditoria autônoma concluída!';
+      dropCad.querySelector('p').innerText = 'Auditoria concluída com sucesso!';
 
       if (segments.length > 0) displayPipeAudit(segments[0]);
     }
@@ -686,7 +678,7 @@
       const ctx = cadCanvas.getContext('2d');
       ctx.clearRect(0, 0, cadCanvas.width, cadCanvas.height);
 
-      ctx.fillStyle = '#040711';
+      ctx.fillStyle = '#030712';
       ctx.fillRect(0, 0, cadCanvas.width, cadCanvas.height);
 
       ctx.strokeStyle = '#0f172a';
@@ -752,7 +744,7 @@
     function displayPipeAudit(p) {
       document.getElementById('selected-pipe-name').innerText = p.id;
       document.getElementById('pipe-details').innerHTML = `
-        <strong>Anotações Extraídas do DXF:</strong><br>
+        <strong>Anotações Extraídas do Ficheiro:</strong><br>
         • Diâmetro Nominal: <strong>Ø ${p.dn} mm</strong><br>
         • Extensão Métrica: <strong>${p.dist} m</strong><br>
         • Declividade Projetada ($i$): <strong>${p.slope}%</strong><br>
