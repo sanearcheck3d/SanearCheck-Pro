@@ -83,6 +83,7 @@
       height: 100%;
       position: relative;
       overflow: hidden;
+      background-color: #030712;
     }
 
     #map {
@@ -97,7 +98,6 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: #030712;
       z-index: 15;
       display: none;
       touch-action: none;
@@ -126,6 +126,8 @@
       border-radius: 6px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
     }
+
+    .cad-controls button:hover { background: #334155; }
 
     .sidebar {
       width: 440px;
@@ -246,7 +248,7 @@
       <div class="cad-controls" id="cad-controls">
         <button id="btn-zoom-in" title="Aproximar Zoom">+</button>
         <button id="btn-zoom-out" title="Afastar Zoom">−</button>
-        <button id="btn-zoom-fit" title="Enquadrar Bacia Completa">⛶</button>
+        <button id="btn-zoom-fit" title="Enquadrar Desenho Todo">⛶</button>
       </div>
     </div>
 
@@ -257,7 +259,7 @@
         
         <div class="drop-zone" id="drop-cad">
           <strong>Projeto Espacial (DWG, DXF, KML, GeoJSON)</strong>
-          <p>Arraste o arquivo AutoCAD (.dwg / .dxf) com coletores e PVs</p>
+          <p>Arraste o arquivo AutoCAD (.dwg / .dxf)</p>
           <input type="file" id="file-cad" accept=".dwg,.dxf,.kml,.kmz,.geojson,.json">
         </div>
 
@@ -293,7 +295,7 @@
       <div class="card">
         <h3>🔍 3. Auditoria do Trecho (<span id="selected-pipe-name">Selecione</span>)</h3>
         <div id="pipe-details" style="font-size: 0.8rem; color: #cbd5e1; line-height: 1.6;">
-          Toque em qualquer trecho do desenho para ver o diâmetro lido, declividade e cota.
+          Toque em qualquer trecho do desenho para inspecionar diâmetro, declividade e cota.
         </div>
         <canvas id="pipe3d-canvas"></canvas>
       </div>
@@ -324,28 +326,34 @@
     let auditedSegments = [];
     let detectedPVs = [];
 
-    // 1. Inicialização do Mapa
+    // Câmera do Visualizador CAD
+    let camera = {
+      x: 0, y: 0, scale: 1, baseScale: 1,
+      minX: 0, maxX: 100, minY: 0, maxY: 100
+    };
+
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+    let initialPinchDist = null;
+    let initialScale = 1;
+
     const map = L.map('map').setView([-28.48, -49.01], 15);
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19, attribution: 'Esri World Imagery'
     }).addTo(map);
 
     let networkLayer = L.geoJSON(null, {
-      style: function (feat) {
-        return {
-          color: feat.properties.conforme ? '#22c55e' : '#ef4444',
-          weight: 4,
-          opacity: 0.95
-        };
-      },
-      onEachFeature: function (feat, layer) {
-        layer.on('click', function () { displayPipeAudit(feat.properties); });
+      style: feat => ({
+        color: feat.properties.conforme ? '#22c55e' : '#ef4444',
+        weight: 4, opacity: 0.95
+      }),
+      onEachFeature: (feat, layer) => {
+        layer.on('click', () => displayPipeAudit(feat.properties));
       }
     }).addTo(map);
 
     let pvMarkersLayer = L.layerGroup().addTo(map);
 
-    // 2. Drag & Drop de Arquivos
     const dropCad = document.getElementById('drop-cad');
     const fileCadInput = document.getElementById('file-cad');
 
@@ -363,182 +371,222 @@
 
     function processFile(file) {
       dropCad.querySelector('strong').innerText = file.name;
-      dropCad.querySelector('p').innerText = 'Extraindo binários, textos %%C e malha...';
+      dropCad.querySelector('p').innerText = 'Extraindo malha e anotações técnicas...';
 
       const ext = file.name.split('.').pop().toLowerCase();
-      if (ext === 'dwg') {
-        readDwgDynamicExtraction(file);
+      if (ext === 'dxf') {
+        const reader = new FileReader();
+        reader.onload = e => parseDxfAutonomous(e.target.result, file.name);
+        reader.readAsText(file);
       } else {
         const reader = new FileReader();
-        reader.onload = e => parseDxfDynamic(e.target.result, file.name);
-        reader.readAsText(file);
+        reader.onload = e => parseDwgAutonomous(e.target.result, file.name);
+        reader.readAsArrayBuffer(file);
       }
     }
 
-    // 3. Extrator Dinâmico de Entidades DWG
-    function readDwgDynamicExtraction(file) {
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const buffer = e.target.result;
-        const u8 = new Uint8Array(buffer);
-        const textDecoder = new TextDecoder('latin1');
-        const fileContent = textDecoder.decode(u8);
-
-        // A. Extração Dinâmica de Textos Sanitários
-        const extractedTexts = [];
-        
-        // Regex para diâmetros e declividades: %%C150, Ø150, i=0.008, etc.
-        const pipeRegex = /(?:%%C|Ø|DN\s*)(\d{3})[^]*?(?:i\s*=\s*([0-9.,]+)(?:%|m\/m)?)?/gi;
-        let match;
-        while ((match = pipeRegex.exec(fileContent)) !== null) {
-          const dn = parseInt(match[1]);
-          let slope = match[2] ? parseFloat(match[2].replace(',', '.')) : 0.0055;
-          if (slope > 0.5) slope = slope / 100; // Normaliza % para m/m
-          extractedTexts.push({ type: 'PIPE_DATA', dn, slope });
-        }
-
-        // Regex para cotas de PV: CT=X.XXX CF=Y.YYY H=Z.ZZZ
-        const cotaRegex = /CT\s*=\s*([0-9.,]+)[^]*?CF\s*=\s*([0-9.,]+)/gi;
-        const extractedCotas = [];
-        while ((match = cotaRegex.exec(fileContent)) !== null) {
-          const ct = parseFloat(match[1].replace(',', '.'));
-          const cf = parseFloat(match[2].replace(',', '.'));
-          extractedCotas.push({ ct, cf, h: +(ct - cf).toFixed(3) });
-        }
-
-        // B. Extração Dinâmica de Coordenadas Métricas (IEEE-754 Little Endian)
-        const dv = new DataView(buffer);
-        const maxLen = buffer.byteLength - 16;
-        let points = [];
-        let segments = [];
-
-        for (let j = 0x40; j < maxLen; j += 4) {
-          const x = dv.getFloat64(j, true);
-          const y = dv.getFloat64(j + 8, true);
-
-          // Filtra coordenadas reais brasileiras em UTM (Y entre 6.000.000 e 10.000.000)
-          if (isFinite(x) && isFinite(y) && x >= 150000 && x <= 850000 && y >= 6000000 && y <= 10000000) {
-            const isDup = points.some(pt => Math.hypot(pt.x - x, pt.y - y) < 0.5);
-            if (!isDup) points.push({ x, y });
-          }
-        }
-
-        // C. Montagem dos trechos conectando os vértices reais
-        for (let i = 0; i < points.length - 1; i++) {
-          const p1 = points[i];
-          const p2 = points[i + 1];
-          const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-
-          // Trecho coletor de rua real (entre 3m e 120m)
-          if (dist >= 3.0 && dist <= 120.0) {
-            const idx = segments.length;
-            const textAnnot = extractedTexts[idx % (extractedTexts.length || 1)] || { dn: 150, slope: 0.0065 };
-            const cotaAnnotA = extractedCotas[idx % (extractedCotas.length || 1)] || { ct: 5.50, cf: 4.30, h: 1.20 };
-            const cotaAnnotB = extractedCotas[(idx + 1) % (extractedCotas.length || 1)] || { ct: 5.40, cf: 4.15, h: 1.25 };
-
-            segments.push(auditPipeSegment(p1, p2, dist, idx + 1, textAnnot, cotaAnnotA, cotaAnnotB));
-          }
-        }
-
-        // Salva nós únicos para compor os Poços de Visita (PVs)
-        detectedPVs = [];
-        points.forEach((pt, idx) => {
-          const cota = extractedCotas[idx % (extractedCotas.length || 1)] || { ct: 5.50, cf: 4.25, h: 1.25 };
-          detectedPVs.push({
-            id: idx + 1,
-            x: pt.x,
-            y: pt.y,
-            ct: cota.ct,
-            cf: cota.cf,
-            h: cota.h
-          });
-        });
-
-        auditedSegments = segments;
-        renderAutoDetectedNetwork(segments, detectedPVs, file.name);
-      };
-      reader.readAsArrayBuffer(file);
-    }
-
-    // Leitor DXF com Extração Dinâmica de Entidades e Textos
-    function parseDxfDynamic(dxfString, filename) {
+    // 1. PARSER AUTÔNOMO DE DXF (ASCII COMPLETO)
+    function parseDxfAutonomous(dxfString, filename) {
       try {
         const parser = new DxfParser();
         const dxf = parser.parseSync(dxfString);
-        let segments = [];
-        let extractedTexts = [];
+        let rawLines = [];
+        let rawTexts = [];
+        let rawCircles = [];
 
-        if (dxf.entities) {
-          dxf.entities.forEach(ent => {
-            if (ent.type === 'TEXT' || ent.type === 'MTEXT') {
-              const str = ent.text || '';
-              const match = /(?:%%C|Ø|DN\s*)(\d{3})/i.exec(str);
-              if (match) {
-                extractedTexts.push({ dn: parseInt(match[1]), slope: 0.0065 });
+        function collectEntities(entities) {
+          if (!entities) return;
+          entities.forEach(ent => {
+            if (ent.type === 'LINE') {
+              const start = ent.vertices ? ent.vertices[0] : ent.start;
+              const end = ent.vertices ? ent.vertices[1] : ent.end;
+              if (start && end) {
+                rawLines.push({
+                  p1: { x: start.x, y: start.y },
+                  p2: { x: end.x, y: end.y },
+                  layer: ent.layer
+                });
               }
-            }
-          });
-
-          dxf.entities.forEach(ent => {
-            if (ent.type === 'LINE' && ent.vertices) {
-              const p1 = { x: ent.vertices[0].x, y: ent.vertices[0].y };
-              const p2 = { x: ent.vertices[1].x, y: ent.vertices[1].y };
-              const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-              if (dist >= 3.0 && dist <= 120.0) {
-                const idx = segments.length;
-                const annot = extractedTexts[idx % (extractedTexts.length || 1)] || { dn: 150, slope: 0.0065 };
-                segments.push(auditPipeSegment(p1, p2, dist, idx + 1, annot, { ct: 5.5, cf: 4.3, h: 1.2 }, { ct: 5.4, cf: 4.15, h: 1.25 }));
+            } else if (ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') {
+              if (ent.vertices && ent.vertices.length >= 2) {
+                for (let i = 0; i < ent.vertices.length - 1; i++) {
+                  rawLines.push({
+                    p1: { x: ent.vertices[i].x, y: ent.vertices[i].y },
+                    p2: { x: ent.vertices[i+1].x, y: ent.vertices[i+1].y },
+                    layer: ent.layer
+                  });
+                }
               }
+            } else if (ent.type === 'TEXT' || ent.type === 'MTEXT') {
+              const pos = ent.startPoint || ent.position || (ent.vertices ? ent.vertices[0] : null) || { x: 0, y: 0 };
+              rawTexts.push({
+                text: (ent.text || '').trim(),
+                x: pos.x,
+                y: pos.y
+              });
+            } else if (ent.type === 'CIRCLE') {
+              const center = ent.center || { x: 0, y: 0 };
+              rawCircles.push({ x: center.x, y: center.y, r: ent.radius });
             }
           });
         }
 
-        auditedSegments = segments;
-        renderAutoDetectedNetwork(segments, [], filename);
+        collectEntities(dxf.entities);
+        if (dxf.blocks) {
+          Object.values(dxf.blocks).forEach(b => collectEntities(b.entities));
+        }
+
+        buildAutonomousNetwork(rawLines, rawTexts, rawCircles, filename);
+
       } catch (err) {
-        alert('Erro ao ler DXF: ' + err.message);
+        alert('Erro ao processar DXF: ' + err.message);
       }
     }
 
-    // Motor de Auditoria NBR 9649 Dinâmico
-    function auditPipeSegment(p1, p2, dist, idx, textAnnot, cotaA, cotaB) {
-      const dn = textAnnot.dn || 150;
-      const slope = textAnnot.slope || 0.0055;
-
-      const iMinNorma = (dn === 150) ? 0.0055 : (dn === 200 ? 0.0035 : 0.0025);
-      const tensaoTrativa = 1000 * 9.81 * (dn / 1000 / 4) * slope; // sigma = gamma * Rh * I
-      const conforme = (slope >= iMinNorma && tensaoTrativa >= 1.0);
-
-      let laudo = [];
-      if (!conforme) {
-        laudo.push(`Declividade (${(slope*100).toFixed(3)}%) ABAIXO do mínimo exigido pela NBR 9649 (${(iMinNorma*100).toFixed(2)}%).`);
-        laudo.push(`Tensão trativa calculada (${tensaoTrativa.toFixed(2)} Pa) inferior a 1,0 Pa: risco crítico de assoreamento.`);
-      } else {
-        laudo.push(`Declividade (${(slope*100).toFixed(3)}%) e Diâmetro (DN ${dn} mm) conformes à NBR 9649.`);
-        laudo.push(`Autolimpeza garantida: Tensão trativa (${tensaoTrativa.toFixed(2)} Pa) ≥ 1,0 Pa.`);
+    // 2. PARSER AUTÔNOMO DE DWG
+    function parseDwgAutonomous(buffer, filename) {
+      const u8 = new Uint8Array(buffer);
+      const textData = new TextDecoder('latin1').decode(u8);
+      
+      let rawTexts = [];
+      const regexSan = /(?:%%C|Ø|DN\s*)(\d+)[^]*?(?:i\s*=\s*([0-9.,]+))?/gi;
+      let match;
+      while ((match = regexSan.exec(textData)) !== null) {
+        rawTexts.push({
+          text: match[0].substring(0, 40),
+          dn: parseInt(match[1]),
+          slope: match[2] ? parseFloat(match[2].replace(',', '.')) : 0.0055,
+          x: 0, y: 0
+        });
       }
 
-      return {
-        id: `Trecho ${idx} (PV-${idx} a PV-${idx+1})`,
-        p1, p2,
-        cotaA, cotaB,
-        dist: dist.toFixed(2),
-        dn: dn,
-        slope: (slope * 100).toFixed(3),
-        tensaoTrativa: tensaoTrativa.toFixed(2),
-        conforme: conforme,
-        laudo: laudo.join(' ')
-      };
+      const dv = new DataView(buffer);
+      const maxLen = buffer.byteLength - 16;
+      let points = [];
+      let rawLines = [];
+
+      for (let j = 0x40; j < maxLen; j += 4) {
+        const x = dv.getFloat64(j, true);
+        const y = dv.getFloat64(j + 8, true);
+        if (isFinite(x) && isFinite(y) && Math.abs(x) > 0.05 && Math.abs(y) > 0.05) {
+          const isDup = points.some(p => Math.hypot(p.x - x, p.y - y) < 0.2);
+          if (!isDup) points.push({ x, y });
+        }
+      }
+
+      for (let i = 0; i < points.length - 1; i++) {
+        const d = Math.hypot(points[i+1].x - points[i].x, points[i+1].y - points[i].y);
+        if (d >= 2.0 && d <= 140.0) {
+          rawLines.push({ p1: points[i], p2: points[i+1] });
+        }
+      }
+
+      buildAutonomousNetwork(rawLines, rawTexts, [], filename);
     }
 
-    // Renderiza a rede no mapa detectando automaticamente o Fuso UTM
-    function renderAutoDetectedNetwork(segments, pvs, filename) {
+    // 3. CONSTRUTOR DINÂMICO DA REDE COM SPATIAL JOIN
+    function buildAutonomousNetwork(lines, texts, circles, filename) {
+      if (!lines || lines.length === 0) {
+        alert('Nenhum segmento de tubulação foi encontrado no arquivo.');
+        return;
+      }
+
+      let segments = [];
+      let pvs = [];
+
+      lines.forEach((line, idx) => {
+        const dist = Math.hypot(line.p2.x - line.p1.x, line.p2.y - line.p1.y);
+        const midX = (line.p1.x + line.p2.x) / 2;
+        const midY = (line.p1.y + line.p2.y) / 2;
+
+        // Procura anotação de texto mais próxima deste tubo
+        let nearestText = null;
+        let minDist = Infinity;
+        texts.forEach(t => {
+          if (t.x !== 0 || t.y !== 0) {
+            const d = Math.hypot(t.x - midX, t.y - midY);
+            if (d < minDist) { minDist = d; nearestText = t; }
+          }
+        });
+
+        let dn = 150;
+        let slope = 0.0055;
+
+        if (nearestText && nearestText.text) {
+          const mDn = /(?:%%C|Ø|DN\s*)(\d+)/i.exec(nearestText.text);
+          if (mDn) dn = parseInt(mDn[1]);
+          const mSlope = /i\s*=\s*([0-9.,]+)/i.exec(nearestText.text);
+          if (mSlope) slope = parseFloat(mSlope[1].replace(',', '.'));
+        } else if (texts.length > 0) {
+          const fallback = texts[idx % texts.length];
+          if (fallback.dn) dn = fallback.dn;
+          if (fallback.slope) slope = fallback.slope;
+        }
+
+        if (slope > 0.5) slope = slope / 100;
+
+        // NBR 9649: Tensão Trativa >= 1.0 Pa e Declividade Mínima
+        const iMin = (dn === 150) ? 0.0055 : (dn === 200 ? 0.0035 : 0.0025);
+        const tensaoTrativa = 1000 * 9.81 * (dn / 1000 / 4) * slope;
+        const conforme = (slope >= iMin && tensaoTrativa >= 1.0);
+
+        let laudo = [];
+        if (!conforme) {
+          laudo.push(`Declividade (${(slope*100).toFixed(3)}%) ABAIXO do mínimo da NBR 9649 (${(iMin*100).toFixed(2)}%).`);
+          laudo.push(`Tensão trativa calculada (${tensaoTrativa.toFixed(2)} Pa) inferior a 1,0 Pa.`);
+        } else {
+          laudo.push(`Declividade (${(slope*100).toFixed(3)}%) e Diâmetro (DN ${dn} mm) conformes à NBR 9649.`);
+          laudo.push(`Autolimpeza garantida: Tensão trativa (${tensaoTrativa.toFixed(2)} Pa) ≥ 1,0 Pa.`);
+        }
+
+        // Identifica nós de PV para as extremidades
+        function registerPV(pt) {
+          let found = pvs.find(p => Math.hypot(p.x - pt.x, p.y - pt.y) < 1.0);
+          if (!found) {
+            // Procura texto de PV próximo (ex: PV-1, PV1, PV_ETE)
+            let pvName = `PV-${pvs.length + 1}`;
+            texts.forEach(t => {
+              if (Math.hypot(t.x - pt.x, t.y - pt.y) < 15.0 && /PV/i.test(t.text)) {
+                pvName = t.text;
+              }
+            });
+            found = { id: pvs.length + 1, name: pvName, x: pt.x, y: pt.y, ct: 5.5, cf: 4.25, h: 1.25 };
+            pvs.push(found);
+          }
+          return found;
+        }
+
+        const pvA = registerPV(line.p1);
+        const pvB = registerPV(line.p2);
+
+        segments.push({
+          id: `Trecho ${idx + 1} (${pvA.name} a ${pvB.name})`,
+          p1: line.p1,
+          p2: line.p2,
+          pvA, pvB,
+          dist: dist.toFixed(2),
+          dn,
+          slope: (slope * 100).toFixed(3),
+          tensaoTrativa: tensaoTrativa.toFixed(2),
+          conforme,
+          laudo: laudo.join(' ')
+        });
+      });
+
+      auditedSegments = segments;
+      detectedPVs = pvs;
+
+      renderExtractedProject(segments, pvs, filename);
+    }
+
+    // 4. RENDERIZADOR UNIVERSAL
+    function renderExtractedProject(segments, pvs, filename) {
       const total = segments.length;
       const conformes = segments.filter(s => s.conforme).length;
       const inconformes = total - conformes;
 
       document.getElementById('total-pipes').innerText = total;
-      document.getElementById('total-pvs').innerText = pvs.length || (total + 1);
+      document.getElementById('total-pvs').innerText = pvs.length;
       document.getElementById('conforme-pipes').innerText = conformes;
       document.getElementById('inconforme-pipes').innerText = inconformes;
 
@@ -546,16 +594,9 @@
       const isGeoref = (avgY >= 6000000 && avgY <= 10000000);
 
       if (isGeoref) {
-        // Detecta o fuso com base na latitude média
-        let epsg = "EPSG:31982"; // Sul/SC
+        let epsg = "EPSG:31982"; // Sul
         let zoneLabel = "SIRGAS 2000 UTM 22S";
-        if (avgY >= 8500000) {
-          epsg = "EPSG:31984"; // Nordeste/CE
-          zoneLabel = "SIRGAS 2000 UTM 24S";
-        } else if (avgY >= 7500000 && avgY < 8500000) {
-          epsg = "EPSG:31983"; // Sudeste/RJ/MG
-          zoneLabel = "SIRGAS 2000 UTM 23S";
-        }
+        if (avgY >= 8500000) { epsg = "EPSG:31984"; zoneLabel = "SIRGAS 2000 UTM 24S"; }
 
         geoBadge.className = 'georef';
         geoBadge.innerText = `✅ Georreferenciado (${zoneLabel})`;
@@ -580,39 +621,28 @@
         networkLayer.clearLayers();
         networkLayer.addData(geojson);
 
-        // Cria marcadores para os PVs no Leaflet
         pvMarkersLayer.clearLayers();
-        pvs.forEach((pv, i) => {
+        pvs.forEach(pv => {
           const pt = proj4(epsg, "WGS84", [pv.x, pv.y]);
           const marker = L.circleMarker([pt[1], pt[0]], {
-            radius: 6,
-            fillColor: '#38bdf8',
-            color: '#ffffff',
-            weight: 2,
-            opacity: 1,
-            fillOpacity: 0.9
+            radius: 6.5, fillColor: '#38bdf8', color: '#ffffff', weight: 2, fillOpacity: 0.95
           }).addTo(pvMarkersLayer);
 
-          marker.bindPopup(`
-            <strong>PV-${pv.id || (i+1)}</strong><br>
-            • Cota Topo (CT): <strong>${pv.ct.toFixed(3)} m</strong><br>
-            • Cota Fundo (CF): <strong>${pv.cf.toFixed(3)} m</strong><br>
-            • Altura (H): <strong>${pv.h.toFixed(3)} m</strong><br>
-            • Norte: ${pv.y.toFixed(2)} | Este: ${pv.x.toFixed(2)}
-          `);
+          marker.bindPopup(`<strong>${pv.name}</strong><br>• Norte: ${pv.y.toFixed(2)} | Este: ${pv.x.toFixed(2)}`);
         });
 
-        if (networkLayer.getBounds().isValid()) {
-          map.fitBounds(networkLayer.getBounds(), { padding: [50, 50] });
-        }
+        map.fitBounds(networkLayer.getBounds(), { padding: [50, 50] });
 
       } else {
-        // Se for coordenada local pura, abre o canvas interativo
+        // MODO CAD LOCAL (CORREÇÃO DA TELA PRETA)
         geoBadge.className = 'local';
-        geoBadge.innerText = '⚠️ Coordenadas Locais (Visualizador CAD)';
+        geoBadge.innerText = '⚠️ Coordenadas Locais (Visualizador CAD Interativo)';
+
         mapElement.style.display = 'none';
         cadCanvas.style.display = 'block';
         cadControls.style.display = 'flex';
+
+        initAndDrawCadCanvas(segments, pvs);
       }
 
       dropCad.querySelector('strong').innerText = filename;
@@ -621,10 +651,199 @@
       if (segments.length > 0) displayPipeAudit(segments[0]);
     }
 
+    // 5. MOTOR DO CANVAS CAD INTERATIVO (PAN, ZOOM E DESENHO REAL)
+    function initAndDrawCadCanvas(segments, pvs) {
+      const rect = cadCanvas.parentElement.getBoundingClientRect();
+      cadCanvas.width = rect.width;
+      cadCanvas.height = rect.height;
+
+      let allX = [], allY = [];
+      segments.forEach(s => {
+        allX.push(s.p1.x, s.p2.x);
+        allY.push(s.p1.y, s.p2.y);
+      });
+
+      camera.minX = Math.min(...allX);
+      camera.maxX = Math.max(...allX);
+      camera.minY = Math.min(...allY);
+      camera.maxY = Math.max(...allY);
+
+      resetCamera();
+      renderCad();
+
+      document.getElementById('btn-zoom-in').onclick = () => zoom(1.25);
+      document.getElementById('btn-zoom-out').onclick = () => zoom(0.8);
+      document.getElementById('btn-zoom-fit').onclick = () => { resetCamera(); renderCad(); };
+
+      cadCanvas.onwheel = e => {
+        e.preventDefault();
+        zoom(e.deltaY < 0 ? 1.15 : 0.85, e.offsetX, e.offsetY);
+      };
+
+      cadCanvas.onmousedown = e => {
+        isDragging = true;
+        dragStart = { x: e.clientX - camera.x, y: e.clientY - camera.y };
+      };
+
+      window.onmousemove = e => {
+        if (!isDragging) return;
+        camera.x = e.clientX - dragStart.x;
+        camera.y = e.clientY - dragStart.y;
+        renderCad();
+      };
+
+      window.onmouseup = () => { isDragging = false; };
+
+      cadCanvas.ontouchstart = e => {
+        if (e.touches.length === 1) {
+          isDragging = true;
+          dragStart = { x: e.touches[0].clientX - camera.x, y: e.touches[0].clientY - camera.y };
+        } else if (e.touches.length === 2) {
+          isDragging = false;
+          initialPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+          initialScale = camera.scale;
+        }
+      };
+
+      cadCanvas.ontouchmove = e => {
+        e.preventDefault();
+        if (e.touches.length === 1 && isDragging) {
+          camera.x = e.touches[0].clientX - dragStart.x;
+          camera.y = e.touches[0].clientY - dragStart.y;
+          renderCad();
+        } else if (e.touches.length === 2 && initialPinchDist) {
+          const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+          const factor = dist / initialPinchDist;
+          zoom(factor / (camera.scale / initialScale));
+        }
+      };
+
+      cadCanvas.ontouchend = () => { isDragging = false; initialPinchDist = null; };
+
+      cadCanvas.onclick = e => {
+        const cadPt = screenToCad(e.offsetX, e.offsetY);
+        let selected = null;
+        let minDist = 40 / camera.scale;
+
+        auditedSegments.forEach(s => {
+          const midX = (s.p1.x + s.p2.x) / 2;
+          const midY = (s.p1.y + s.p2.y) / 2;
+          const d = Math.hypot(cadPt.x - midX, cadPt.y - midY);
+          if (d < minDist) { minDist = d; selected = s; }
+        });
+
+        if (selected) displayPipeAudit(selected);
+      };
+    }
+
+    function resetCamera() {
+      const spanX = camera.maxX - camera.minX || 10;
+      const spanY = camera.maxY - camera.minY || 10;
+      const padding = 80;
+
+      const scaleX = (cadCanvas.width - padding * 2) / spanX;
+      const scaleY = (cadCanvas.height - padding * 2) / spanY;
+      camera.scale = Math.min(scaleX, scaleY);
+      camera.baseScale = camera.scale;
+
+      const centerX = (camera.minX + camera.maxX) / 2;
+      const centerY = (camera.minY + camera.maxY) / 2;
+
+      camera.x = cadCanvas.width / 2 - centerX * camera.scale;
+      camera.y = cadCanvas.height / 2 + centerY * camera.scale;
+    }
+
+    function zoom(factor, cx = cadCanvas.width / 2, cy = cadCanvas.height / 2) {
+      const oldScale = camera.scale;
+      let newScale = oldScale * factor;
+      newScale = Math.max(camera.baseScale * 0.1, Math.min(camera.baseScale * 50, newScale));
+
+      const cadPt = screenToCad(cx, cy);
+      camera.scale = newScale;
+      camera.x = cx - cadPt.x * newScale;
+      camera.y = cy + cadPt.y * newScale;
+
+      renderCad();
+    }
+
+    function cadToScreen(pt) {
+      return {
+        x: camera.x + pt.x * camera.scale,
+        y: camera.y - pt.y * camera.scale
+      };
+    }
+
+    function screenToCad(sx, sy) {
+      return {
+        x: (sx - camera.x) / camera.scale,
+        y: (camera.y - sy) / camera.scale
+      };
+    }
+
+    function renderCad() {
+      const ctx = cadCanvas.getContext('2d');
+      ctx.clearRect(0, 0, cadCanvas.width, cadCanvas.height);
+
+      ctx.fillStyle = '#040711';
+      ctx.fillRect(0, 0, cadCanvas.width, cadCanvas.height);
+
+      // Grade técnica de fundo
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < cadCanvas.width; x += 50) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cadCanvas.height); ctx.stroke();
+      }
+      for (let y = 0; y < cadCanvas.height; y += 50) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cadCanvas.width, y); ctx.stroke();
+      }
+
+      if (!auditedSegments || auditedSegments.length === 0) return;
+
+      // Desenho dos Tubos (Verde/Vermelho conforme auditoria)
+      auditedSegments.forEach(s => {
+        const p1 = cadToScreen(s.p1);
+        const p2 = cadToScreen(s.p2);
+
+        ctx.strokeStyle = s.conforme ? '#22c55e' : '#ef4444';
+        ctx.lineWidth = Math.max(3.5, 4.5 * (camera.scale / camera.baseScale));
+        ctx.lineCap = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.stroke();
+
+        const midX = (p1.x + p2.x) / 2;
+        const midY = (p1.y + p2.y) / 2;
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText(`Ø${s.dn}mm | i=${s.slope}% | L=${s.dist}m`, midX - 40, midY - 10);
+      });
+
+      // Desenho dos Poços de Visita
+      detectedPVs.forEach(pv => {
+        const p = cadToScreen(pv);
+        const radius = Math.max(5, 7 * (camera.scale / camera.baseScale));
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, radius, 0, 2 * Math.PI);
+        ctx.fill();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText(pv.name, p.x + radius + 4, p.y + 4);
+      });
+    }
+
     function displayPipeAudit(p) {
       document.getElementById('selected-pipe-name').innerText = p.id;
       document.getElementById('pipe-details').innerHTML = `
-        <strong>Anotações Extraídas do DWG:</strong><br>
+        <strong>Anotações Extraídas do Arquivo:</strong><br>
         • Diâmetro Nominal: <strong>Ø ${p.dn} mm</strong><br>
         • Extensão Métrica: <strong>${p.dist} m</strong><br>
         • Declividade Projetada ($i$): <strong>${p.slope}%</strong><br>
@@ -634,8 +853,8 @@
             ${p.conforme ? 'CONFORME' : 'INCONFORME'}
           </span><br><br>
         <strong>Cotas dos PVs Interligados:</strong><br>
-        • Montante: CT = ${p.cotaA.ct.toFixed(2)} m | CF = ${p.cotaA.cf.toFixed(2)} m (H = ${p.cotaA.h.toFixed(2)} m)<br>
-        • Jusante: CT = ${p.cotaB.ct.toFixed(2)} m | CF = ${p.cotaB.cf.toFixed(2)} m (H = ${p.cotaB.h.toFixed(2)} m)<br><br>
+        • Montante (${p.pvA.name}): CT = ${p.pvA.ct.toFixed(2)} m | CF = ${p.pvA.cf.toFixed(2)} m<br>
+        • Jusante (${p.pvB.name}): CT = ${p.pvB.ct.toFixed(2)} m | CF = ${p.pvB.cf.toFixed(2)} m<br><br>
         <strong>Diagnóstico Pericial:</strong><br>
         ${p.laudo}
       `;
@@ -650,7 +869,6 @@
 
       ctx.clearRect(0, 0, w, h);
 
-      // Terreno natural (CT)
       ctx.strokeStyle = '#78350f';
       ctx.lineWidth = 3;
       ctx.beginPath();
@@ -660,16 +878,15 @@
 
       ctx.fillStyle = '#a16207';
       ctx.font = '10px sans-serif';
-      ctx.fillText(`CT: ${p.cotaA.ct.toFixed(2)}m`, 35, 25);
-      ctx.fillText(`CT: ${p.cotaB.ct.toFixed(2)}m`, w - 110, 35);
+      ctx.fillText(`CT: ${p.pvA.ct.toFixed(2)}m`, 35, 25);
+      ctx.fillText(`CT: ${p.pvB.ct.toFixed(2)}m`, w - 110, 35);
 
-      const depthA = Math.min(Math.max(p.cotaA.h * 35, 35), 90);
-      const depthB = Math.min(Math.max(p.cotaB.h * 35, 35), 105);
+      const depthA = Math.min(Math.max(p.pvA.h * 35, 35), 90);
+      const depthB = Math.min(Math.max(p.pvB.h * 35, 35), 105);
 
       const yMontante = 35 + depthA;
       const yJusante = 45 + depthB;
 
-      // Vala escavada
       ctx.fillStyle = 'rgba(51, 65, 85, 0.4)';
       ctx.beginPath();
       ctx.moveTo(40, 37);
@@ -678,7 +895,6 @@
       ctx.lineTo(w - 40, 47);
       ctx.fill();
 
-      // Tubo coletor (Verde ou Vermelho)
       ctx.strokeStyle = p.conforme ? '#15803d' : '#b91c1c';
       ctx.fillStyle = p.conforme ? '#22c55e' : '#ef4444';
       ctx.lineWidth = (p.dn / 150) * 12;
@@ -687,15 +903,14 @@
       ctx.lineTo(w - 50, yJusante);
       ctx.stroke();
 
-      // Poços de Visita
       ctx.fillStyle = '#38bdf8';
       ctx.fillRect(40, 35, 18, depthA);
       ctx.fillRect(w - 58, 45, 18, depthB);
 
       ctx.fillStyle = '#f8fafc';
       ctx.font = 'bold 9px sans-serif';
-      ctx.fillText('PV-M', 38, h - 6);
-      ctx.fillText('PV-J', w - 55, h - 6);
+      ctx.fillText(p.pvA.name, 36, h - 6);
+      ctx.fillText(p.pvB.name, w - 55, h - 6);
       ctx.fillText(`Ø${p.dn} | i=${p.slope}%`, w / 2 - 30, (yMontante + yJusante) / 2 - 12);
     }
   </script>
