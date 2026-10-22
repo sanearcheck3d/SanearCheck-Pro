@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SanearCheck Pro — Auditoria Pericial & Georreferenciamento</title>
+  <title>SanearCheck Pro — Auditoria Pericial & SIG</title>
 
-  <!-- Leaflet CSS (Mapas) -->
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
@@ -25,7 +25,6 @@
       overflow: hidden;
     }
 
-    /* Barra Superior */
     header {
       height: 60px;
       background-color: #1e293b;
@@ -81,7 +80,6 @@
       background: #15803d;
     }
 
-    /* Estrutura Principal */
     .main-container {
       display: flex;
       flex: 1;
@@ -89,14 +87,12 @@
       position: relative;
     }
 
-    /* Mapa */
     #map {
       flex: 1;
       height: 100%;
       z-index: 10;
     }
 
-    /* Painel Lateral */
     .sidebar {
       width: 400px;
       background-color: #1e293b;
@@ -125,11 +121,10 @@
       gap: 8px;
     }
 
-    /* Caixas de Upload */
     .drop-zone {
       border: 2px dashed #475569;
       border-radius: 8px;
-      padding: 18px;
+      padding: 16px;
       text-align: center;
       cursor: pointer;
       transition: border-color 0.2s, background-color 0.2s;
@@ -141,17 +136,22 @@
       background-color: rgba(56, 189, 248, 0.05);
     }
 
+    .drop-zone strong {
+      display: block;
+      font-size: 0.85rem;
+      color: #f1f5f9;
+    }
+
     .drop-zone p {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       color: #94a3b8;
-      margin-top: 6px;
+      margin-top: 4px;
     }
 
     .drop-zone input {
       display: none;
     }
 
-    /* Estatísticas */
     .status-summary {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -176,7 +176,6 @@
       color: #94a3b8;
     }
 
-    /* Caixa 3D Placeholder */
     #pipe3d-container {
       width: 100%;
       height: 180px;
@@ -195,7 +194,6 @@
 </head>
 <body>
 
-  <!-- Barra Superior -->
   <header>
     <div class="brand">
       SanearCheck Pro <span>| Auditoria Pericial & SIG</span>
@@ -207,38 +205,38 @@
     </div>
   </header>
 
-  <!-- Estrutura Principal -->
   <div class="main-container">
-    <!-- Mapa de Satélite -->
     <div id="map"></div>
 
-    <!-- Barra Lateral -->
     <aside class="sidebar">
-      
-      <!-- Uploads -->
       <div class="card">
         <h3>📂 1. Ingestão de Arquivos</h3>
         
+        <!-- Upload Projeto Espacial -->
         <div class="drop-zone" id="drop-cad">
-          <strong>Projeto Espacial (KML / GeoJSON)</strong>
+          <strong>Projeto Espacial (DXF, KML, KMZ, GeoJSON)</strong>
           <p>Arraste o traçado da rede com os tubos e PVs</p>
-          <input type="file" id="file-cad" accept=".kml,.kmz,.geojson,.json,.dxf">
+          <input type="file" id="file-cad" accept=".dxf,.kml,.kmz,.geojson,.json,.dwg">
         </div>
 
+        <!-- Upload Memória de Cálculo Multiformato -->
         <div class="drop-zone" id="drop-calc">
-          <strong>Memória de Cálculo (Excel / CSV)</strong>
-          <p>Arraste a planilha com as vazões e cotas</p>
-          <input type="file" id="file-calc" accept=".xlsx,.xls,.csv">
+          <strong>Memória de Cálculo (Excel, CSV, PDF, Word)</strong>
+          <p>Arraste a planilha ou documento com vazões e cotas</p>
+          <input type="file" id="file-calc" accept=".xlsx,.xls,.csv,.pdf,.docx,.doc">
         </div>
       </div>
 
-      <!-- Diagnóstico da Bacia -->
       <div class="card">
         <h3>📊 2. Diagnóstico da Bacia</h3>
         <div class="status-summary">
           <div class="stat-box">
             <div class="num" id="total-pipes">0</div>
-            <div class="label">Trechos Mapeados</div>
+            <div class="label">Trechos no Mapa</div>
+          </div>
+          <div class="stat-box">
+            <div class="num" id="total-memorial-rows">0</div>
+            <div class="label">Linhas Memorial</div>
           </div>
           <div class="stat-box">
             <div class="num" id="conforme-pipes" style="color: #4ade80;">0</div>
@@ -248,14 +246,9 @@
             <div class="num" id="inconforme-pipes" style="color: #f87171;">0</div>
             <div class="label">Inconformes</div>
           </div>
-          <div class="stat-box">
-            <div class="num" id="total-length">0 m</div>
-            <div class="label">Extensão Total</div>
-          </div>
         </div>
       </div>
 
-      <!-- Detalhe do Trecho Selecionado -->
       <div class="card">
         <h3>🔍 3. Inspeção do Trecho (<span id="selected-pipe-name">Nenhum</span>)</h3>
         <div id="pipe3d-container">
@@ -265,26 +258,44 @@
           Aguardando seleção...
         </div>
       </div>
-
     </aside>
   </div>
 
-  <!-- Bibliotecas: Leaflet + toGeoJSON (KML) + SheetJS (Excel) -->
+  <!-- Bibliotecas Base: Leaflet, KML, Excel, Projeção UTM, DXF -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.min.js"></script>
+
+  <!-- Bibliotecas Adicionadas: PDF.js (Leitura de PDF) e Mammoth (Leitura de Word .docx) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <script>
-    // 1. Inicializar Mapa com Google Satélite (Centralizado em Sobral-CE)
+    // Configura o worker do PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    // 1. Projeção UTM 24S (SIRGAS 2000)
+    proj4.defs("EPSG:31984", "+proj=utm +zone=24 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
+
+    function utmToLatLng(x, y) {
+      try {
+        const coords = proj4("EPSG:31984", "WGS84", [x, y]);
+        return [coords[1], coords[0]];
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // 2. Mapa Leaflet
     const map = L.map('map').setView([-3.6881, -40.3546], 15);
 
-    // Camada Satélite Esri / Google
     const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19,
       attribution: 'Esri World Imagery'
     }).addTo(map);
 
-    // Camada Alternativa OpenStreetMap
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: 'OpenStreetMap'
@@ -296,96 +307,225 @@
     }).addTo(map);
 
     let networkLayer = L.geoJSON(null, {
-      style: function (feature) {
-        return {
-          color: '#38bdf8',
-          weight: 4,
-          opacity: 0.95
-        };
+      style: function () {
+        return { color: '#38bdf8', weight: 4, opacity: 0.95 };
       },
       onEachFeature: function (feature, layer) {
-        layer.on('click', function () {
-          selectPipe(feature, layer);
-        });
+        layer.on('click', function () { selectPipe(feature, layer); });
       }
     }).addTo(map);
 
-    // 2. Upload e Leitura do Arquivo Espacial (KML / GeoJSON)
+    // Estruturas de Memória Compartilhada
+    let spatialFeatures = [];
+    let calculationRows = [];
+
+    // 3. Upload de Arquivo Espacial (CAD / DXF / KML)
     const dropCad = document.getElementById('drop-cad');
     const fileCadInput = document.getElementById('file-cad');
 
     dropCad.addEventListener('click', () => fileCadInput.click());
-
-    dropCad.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropCad.classList.add('dragover');
-    });
-
+    dropCad.addEventListener('dragover', (e) => { e.preventDefault(); dropCad.classList.add('dragover'); });
     dropCad.addEventListener('dragleave', () => dropCad.classList.remove('dragover'));
-
     dropCad.addEventListener('drop', (e) => {
       e.preventDefault();
       dropCad.classList.remove('dragover');
-      if (e.dataTransfer.files.length > 0) {
-        handleSpatialFile(e.dataTransfer.files[0]);
-      }
+      if (e.dataTransfer.files.length > 0) handleSpatialFile(e.dataTransfer.files[0]);
     });
-
     fileCadInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) {
-        handleSpatialFile(e.target.files[0]);
-      }
+      if (e.target.files.length > 0) handleSpatialFile(e.target.files[0]);
     });
 
     function handleSpatialFile(file) {
-      const reader = new FileReader();
       const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'dwg') {
+        alert("O formato DWG é binário e proprietário. Abra o projeto no AutoCAD/Civil 3D e salve como DXF. O DXF é lido nativamente!");
+        return;
+      }
 
+      const reader = new FileReader();
       reader.onload = function (event) {
         const content = event.target.result;
-
         if (ext === 'kml') {
           const parser = new DOMParser();
           const kmlDoc = parser.parseFromString(content, 'text/xml');
-          const geojson = toGeoJSON.kml(kmlDoc);
-          renderNetwork(geojson, file.name);
+          renderNetwork(toGeoJSON.kml(kmlDoc), file.name);
         } else if (ext === 'geojson' || ext === 'json') {
-          const geojson = JSON.parse(content);
-          renderNetwork(geojson, file.name);
-        } else {
-          alert('Arquivo ' + ext.toUpperCase() + ' selecionado. Para esta etapa piloto, utilize KML ou GeoJSON.');
+          renderNetwork(JSON.parse(content), file.name);
+        } else if (ext === 'dxf') {
+          parseDxfToGeoJson(content, file.name);
         }
       };
-
       reader.readAsText(file);
+    }
+
+    function parseDxfToGeoJson(dxfString, filename) {
+      try {
+        const parser = new DxfParser();
+        const dxf = parser.parseSync(dxfString);
+        const features = [];
+        let pipeIndex = 1;
+
+        if (dxf && dxf.entities) {
+          dxf.entities.forEach(entity => {
+            if (entity.type === 'LINE') {
+              const p1 = utmToLatLng(entity.vertices[0].x, entity.vertices[0].y);
+              const p2 = utmToLatLng(entity.vertices[1].x, entity.vertices[1].y);
+              if (p1 && p2) {
+                features.push({
+                  type: 'Feature',
+                  properties: { name: `Trecho ${pipeIndex++}`, layer: entity.layer, tipo: 'LINE' },
+                  geometry: { type: 'LineString', coordinates: [[p1[1], p1[0]], [p2[1], p2[0]]] }
+                });
+              }
+            } else if (entity.type === 'LWPOLYLINE' || entity.type === 'POLYLINE') {
+              if (entity.vertices && entity.vertices.length >= 2) {
+                const coords = [];
+                entity.vertices.forEach(v => {
+                  const p = utmToLatLng(v.x, v.y);
+                  if (p) coords.push([p[1], p[0]]);
+                });
+                if (coords.length >= 2) {
+                  features.push({
+                    type: 'Feature',
+                    properties: { name: `Trecho ${pipeIndex++}`, layer: entity.layer, tipo: entity.type },
+                    geometry: { type: 'LineString', coordinates: coords }
+                  });
+                }
+              }
+            }
+          });
+        }
+
+        renderNetwork({ type: 'FeatureCollection', features: features }, filename);
+      } catch (err) {
+        alert('Erro ao processar DXF: ' + err.message);
+      }
     }
 
     function renderNetwork(geojson, filename) {
       networkLayer.clearLayers();
       networkLayer.addData(geojson);
+      spatialFeatures = geojson.features || [];
 
-      // Dá zoom automático na rede carregada
       if (networkLayer.getBounds().isValid()) {
         map.fitBounds(networkLayer.getBounds(), { padding: [50, 50] });
       }
 
-      const features = geojson.features || [];
-      document.getElementById('total-pipes').innerText = features.length;
+      document.getElementById('total-pipes').innerText = spatialFeatures.length;
       dropCad.querySelector('strong').innerText = filename;
       dropCad.querySelector('p').innerText = 'Carregado com sucesso!';
     }
 
-    // 3. Seleção do Trecho ao Clicar
+    // 4. Upload de Memória de Cálculo (Excel, CSV, PDF, Word)
+    const dropCalc = document.getElementById('drop-calc');
+    const fileCalcInput = document.getElementById('file-calc');
+
+    dropCalc.addEventListener('click', () => fileCalcInput.click());
+    dropCalc.addEventListener('dragover', (e) => { e.preventDefault(); dropCalc.classList.add('dragover'); });
+    dropCalc.addEventListener('dragleave', () => dropCalc.classList.remove('dragover'));
+    dropCalc.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropCalc.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) handleCalcFile(e.dataTransfer.files[0]);
+    });
+    fileCalcInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) handleCalcFile(e.target.files[0]);
+    });
+
+    function handleCalcFile(file) {
+      const ext = file.name.split('.').pop().toLowerCase();
+      
+      if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
+        readSpreadsheet(file);
+      } else if (ext === 'pdf') {
+        readPdfDocument(file);
+      } else if (ext === 'docx') {
+        readWordDocument(file);
+      } else {
+        alert('Formato ' + ext.toUpperCase() + ' não suportado. Utilize Excel (.xlsx, .xls), CSV, PDF ou Word (.docx).');
+      }
+    }
+
+    // Leitor de Excel / CSV
+    function readSpreadsheet(file) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        calculationRows = XLSX.utils.sheet_to_json(worksheet);
+        
+        finalizeMemorialLoad(file.name, calculationRows.length);
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // Leitor de PDF (pdf.js)
+    function readPdfDocument(file) {
+      const reader = new FileReader();
+      reader.onload = async function (e) {
+        try {
+          const typedArray = new Uint8Array(e.target.result);
+          const pdf = await pdfjsLib.getDocument(typedArray).promise;
+          let fullTextLines = [];
+
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            const pageLines = textContent.items.map(item => item.str.trim()).filter(str => str.length > 0);
+            fullTextLines = fullTextLines.concat(pageLines);
+          }
+
+          // Identifica linhas candidatas a trechos de cálculo
+          calculationRows = fullTextLines.filter(line => /PV|trecho|T-\d+|\d+\s*-\s*\d+/i.test(line)).map((line, idx) => ({
+            Trecho: `Trecho ${idx + 1}`,
+            DadosBrutos: line
+          }));
+
+          finalizeMemorialLoad(file.name, calculationRows.length || fullTextLines.length);
+        } catch (err) {
+          alert('Erro ao extrair dados do PDF: ' + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // Leitor de Word .docx (mammoth.js)
+    function readWordDocument(file) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        mammoth.extractRawText({ arrayBuffer: e.target.result })
+          .then(result => {
+            const lines = result.value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            calculationRows = lines.filter(line => /PV|trecho|T-\d+|\d+\s*-\s*\d+/i.test(line)).map((line, idx) => ({
+              Trecho: `Trecho ${idx + 1}`,
+              DadosBrutos: line
+            }));
+
+            finalizeMemorialLoad(file.name, calculationRows.length || lines.length);
+          })
+          .catch(err => alert('Erro ao processar Word: ' + err.message));
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function finalizeMemorialLoad(filename, count) {
+      document.getElementById('total-memorial-rows').innerText = count;
+      dropCalc.querySelector('strong').innerText = filename;
+      dropCalc.querySelector('p').innerText = `Processado (${count} registros identificados)`;
+    }
+
     function selectPipe(feature, layer) {
       const props = feature.properties || {};
       const name = props.name || props.Trecho || 'Trecho Selecionado';
       
       document.getElementById('selected-pipe-name').innerText = name;
       document.getElementById('pipe-details').innerHTML = `
-        <strong>Metadados Identificados:</strong><br>
+        <strong>Propriedades Detectadas:</strong><br>
         • ID do Trecho: ${name}<br>
-        • Detalhes: ${props.description || 'Sem atributos descritivos'}<br>
-        • Geometria: Traçado ativo na bacia
+        • Camada (Layer): ${props.layer || 'Padrão'}<br>
+        • Entidade: ${props.tipo || 'Vetor Georreferenciado'}
       `;
     }
   </script>
