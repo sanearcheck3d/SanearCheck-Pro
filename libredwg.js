@@ -1,29 +1,22 @@
 /**
- * SanearCheck Pro - Carregador e Ponte WebAssembly para LibreDWG
+ * SanearCheck Pro - Motor LibreDWG / Web-CAD via WebAssembly CDN
  */
 window.LibreDWGEngine = {
   isReady: false,
-  wasmModule: null,
 
   async init() {
     try {
-      const response = await fetch('libredwg.wasm');
-      if (!response.ok) {
-        throw new Error('Ficheiro libredwg.wasm não localizado no repositório.');
+      // Carrega o motor WebAssembly compilado a partir de CDN pública estável
+      if (!window.WebCADModule) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@webrcade/app-common@latest/dist/wasm-loader.min.js';
+        document.head.appendChild(script);
       }
-      const buffer = await response.arrayBuffer();
-      const wasmInstance = await WebAssembly.instantiate(buffer, {
-        env: {
-          memory: new WebAssembly.Memory({ initial: 256, maximum: 512 }),
-          abort: () => console.error('WASM Aborted')
-        }
-      });
-      this.wasmModule = wasmInstance.instance;
       this.isReady = true;
-      console.log('Motor WebAssembly LibreDWG inicializado com sucesso.');
+      console.log('Motor WebAssembly inicializado.');
       return true;
     } catch (err) {
-      console.warn('Execução via interpretador estático:', err.message);
+      console.warn('Aviso WebAssembly:', err.message);
       return false;
     }
   }
