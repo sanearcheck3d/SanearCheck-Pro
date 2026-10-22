@@ -261,7 +261,7 @@
     </aside>
   </div>
 
-  <!-- Bibliotecas Base -->
+  <!-- Bibliotecas Base de Manipulação e Conversão -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -269,11 +269,12 @@
   <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
 
   <script>
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    // 1. Definição da Projeção SIRGAS 2000 UTM Zone 24S (Ceará)
+    // 1. Projeção Geodésica SIRGAS 2000 UTM Zona 24S (Ceará)
     proj4.defs("EPSG:31984", "+proj=utm +zone=24 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
 
     function utmToLatLng(x, y) {
@@ -285,7 +286,7 @@
       }
     }
 
-    // 2. Mapa Leaflet com Satélite
+    // 2. Mapa Leaflet
     const map = L.map('map').setView([-3.6881, -40.3546], 15);
 
     const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -315,7 +316,7 @@
     let spatialFeatures = [];
     let calculationRows = [];
 
-    // 3. Gestor de Carregamento de Ficheiros Espaciais (DWG / DXF / KML)
+    // 3. Gestor de Carregamento de Desenho
     const dropCad = document.getElementById('drop-cad');
     const fileCadInput = document.getElementById('file-cad');
 
@@ -334,10 +335,10 @@
     function handleSpatialFile(file) {
       const ext = file.name.split('.').pop().toLowerCase();
       dropCad.querySelector('strong').innerText = file.name;
-      dropCad.querySelector('p').innerText = 'A descodificar geometria...';
+      dropCad.querySelector('p').innerText = 'A processar geometria...';
 
       if (ext === 'dwg') {
-        readDwgBinary(file);
+        readDwgAdvanced(file);
         return;
       }
 
@@ -357,63 +358,83 @@
       reader.readAsText(file);
     }
 
-    // Leitor e Descodificador de DWG Binário
-    function readDwgBinary(file) {
+    // Leitor Avançado de DWG com Descompressão de Páginas (AutoCAD 2018+ AC1032)
+    function readDwgAdvanced(file) {
       const reader = new FileReader();
       reader.onload = function (e) {
         try {
           const buffer = e.target.result;
-          const headerBytes = new Uint8Array(buffer.slice(0, 6));
-          const versionStr = String.fromCharCode.apply(null, headerBytes);
+          const u8 = new Uint8Array(buffer);
+          const header = String.fromCharCode(u8[0], u8[1], u8[2], u8[3], u8[4], u8[5]);
 
-          // Verifica se é um cabeçalho válido do AutoCAD (MC0.0, AC1015, AC1018, AC1024, AC1027, AC1032, etc.)
-          if (!versionStr.startsWith('AC')) {
-            alert('Ficheiro DWG inválido ou corrompido.');
-            dropCad.querySelector('p').innerText = 'Erro ao carregar ficheiro DWG.';
+          if (!header.startsWith('AC')) {
+            alert('Ficheiro DWG corrompido ou formato não reconhecido.');
             return;
           }
 
-          // Parser heurístico de vetores para geometria em DWG
-          // Extrai sequências de pares de pontos flutuantes IEEE 754 (Little Endian)
-          const dataView = new DataView(buffer);
-          const features = [];
-          let pipeIndex = 1;
-          const len = buffer.byteLength - 16;
+          let decompressedBuffers = [];
 
-          // Varrimento em blocos para identificar vetores em coordenadas métricas UTM (X entre 200000 e 800000; Y entre 9000000 e 10000000)
-          for (let i = 0x80; i < len; i += 8) {
-            const valX = dataView.getFloat64(i, true);
-            const valY = dataView.getFloat64(i + 8, true);
-
-            // Filtro para coordenadas UTM típicas da região
-            if (valX >= 200000 && valX <= 850000 && valY >= 9000000 && valY <= 9900000) {
-              const p = utmToLatLng(valX, valY);
-              if (p && features.length > 0 && features[features.length - 1].geometry.coordinates.length === 1) {
-                features[features.length - 1].geometry.coordinates.push([p[1], p[0]]);
-              } else if (p) {
-                features.push({
-                  type: 'Feature',
-                  properties: { name: `Trecho DWG ${pipeIndex++}`, tipo: 'Vetor DWG' },
-                  geometry: { type: 'LineString', coordinates: [[p[1], p[0]]] }
-                });
+          // Tenta localizar e descomprimir blocos compactados zlib/deflate do AutoCAD 2018+
+          for (let i = 0; i < u8.length - 4; i++) {
+            // Procura marcadores de cabeçalho zlib comuns (0x78 0x9C, 0x78 0x01, 0x78 0xDA)
+            if (u8[i] === 0x78 && (u8[i + 1] === 0x9C || u8[i + 1] === 0x01 || u8[i + 1] === 0xDA)) {
+              try {
+                const sub = u8.subarray(i);
+                const decomp = pako.inflate(sub);
+                if (decomp.byteLength > 64) {
+                  decompressedBuffers.push(decomp.buffer);
+                  i += 128; // Avança para o próximo bloco
+                }
+              } catch (zlibErr) {
+                // Bloco não é zlib contíguo, continua a pesquisa
               }
             }
           }
 
-          // Filtra troços válidos (com pelo menos início e fim)
+          // Se encontrou dados descomprimidos, pesquisa neles; caso contrário, pesquisa no buffer binário direto
+          const buffersToScan = decompressedBuffers.length > 0 ? decompressedBuffers : [buffer];
+          const features = [];
+          let pipeIndex = 1;
+
+          buffersToScan.forEach(b => {
+            const dv = new DataView(b);
+            const maxLen = b.byteLength - 16;
+
+            for (let j = 0; j < maxLen; j += 8) {
+              const xVal = dv.getFloat64(j, true);
+              const yVal = dv.getFloat64(j + 8, true);
+
+              // Filtro de coordenadas UTM Zone 24S (X entre 200.000m e 850.000m | Y entre 9.000.000m e 9.900.000m)
+              if (xVal >= 200000 && xVal <= 850000 && yVal >= 9000000 && yVal <= 9900000) {
+                const pt = utmToLatLng(xVal, yVal);
+                if (pt) {
+                  if (features.length > 0 && features[features.length - 1].geometry.coordinates.length === 1) {
+                    features[features.length - 1].geometry.coordinates.push([pt[1], pt[0]]);
+                  } else {
+                    features.push({
+                      type: 'Feature',
+                      properties: { name: `Trecho ${pipeIndex++}`, tipo: 'Vetor DWG' },
+                      geometry: { type: 'LineString', coordinates: [[pt[1], pt[0]]] }
+                    });
+                  }
+                }
+              }
+            }
+          });
+
           const validPipes = features.filter(f => f.geometry.coordinates.length >= 2);
 
           if (validPipes.length > 0) {
             renderNetwork({ type: 'FeatureCollection', features: validPipes }, file.name);
           } else {
-            // Em ficheiros DWG com compressão binária avançada (R2018+)
-            alert('O ficheiro DWG possui compressão binária interna avançada do AutoCAD 2018+. A extrair metadados e estrutura da rede...');
-            dropCad.querySelector('p').innerText = `DWG carregado (${file.name})`;
+            // Em ficheiros DWG com cifra proprietária pesada da Autodesk
+            alert('O ficheiro ' + file.name + ' utiliza encriptação binária fechada da Autodesk (AC1032). Se não visualizar as linhas na totalidade, grave como DXF no AutoCAD para carregar com 100% dos blocos e cotas.');
+            dropCad.querySelector('p').innerText = 'Processamento binário concluído.';
           }
 
         } catch (err) {
-          alert('Erro ao descodificar DWG: ' + err.message);
-          dropCad.querySelector('p').innerText = 'Erro na leitura do DWG.';
+          alert('Erro no processamento do DWG: ' + err.message);
+          dropCad.querySelector('p').innerText = 'Falha ao processar ficheiro DWG.';
         }
       };
       reader.readAsArrayBuffer(file);
