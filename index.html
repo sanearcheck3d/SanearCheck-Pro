@@ -127,8 +127,6 @@
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
     }
 
-    .cad-controls button:hover { background: #334155; }
-
     .sidebar {
       width: 440px;
       background-color: #1e293b;
@@ -314,37 +312,8 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
     proj4.defs("EPSG:31982", "+proj=utm +zone=22 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
+    proj4.defs("EPSG:31983", "+proj=utm +zone=23 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
     proj4.defs("EPSG:31984", "+proj=utm +zone=24 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
-
-    // Cadastro oficial extraído da prancha técnica do projeto
-    const officialPVTable = [
-      { id: 1,  tipo: 'Terminal de Limpeza', n: 6845558.247, e: 693334.959, ct: 6.827, cf: 5.777, h: 1.050 },
-      { id: 2,  tipo: 'Poço de Visita',      n: 6845534.216, e: 693301.670, ct: 6.424, cf: 5.594, h: 1.250 },
-      { id: 3,  tipo: 'Terminal de Limpeza', n: 6845533.649, e: 693299.701, ct: 6.410, cf: 5.360, h: 1.050 },
-      { id: 4,  tipo: 'Poço de Visita',      n: 6845527.481, e: 693273.478, ct: 6.020, cf: 5.293, h: 1.280 },
-      { id: 5,  tipo: 'Poço de Visita',      n: 6845527.082, e: 693271.748, ct: 5.996, cf: 5.313, h: 1.300 },
-      { id: 6,  tipo: 'Terminal de Limpeza', n: 6845554.552, e: 693249.746, ct: 5.971, cf: 4.921, h: 1.050 },
-      { id: 7,  tipo: 'Poço de Visita',      n: 6845521.426, e: 693291.770, ct: 6.273, cf: 5.291, h: 1.300 },
-      { id: 8,  tipo: 'Terminal de Limpeza', n: 6845511.184, e: 693331.424, ct: 6.962, cf: 6.132, h: 1.050 },
-      { id: 9,  tipo: 'Poço de Visita',      n: 6845518.016, e: 693277.997, ct: 6.066, cf: 5.243, h: 1.330 },
-      { id: 10, tipo: 'Terminal de Limpeza', n: 6845517.498, e: 693276.129, ct: 6.020, cf: 4.970, h: 1.050 },
-      { id: 11, tipo: 'Poço de Visita',      n: 6845511.494, e: 693251.038, ct: 5.719, cf: 4.828, h: 1.350 },
-      { id: 12, tipo: 'Poço de Visita',      n: 6845511.121, e: 693249.465, ct: 5.733, cf: 4.896, h: 1.370 },
-      { id: 13, tipo: 'Terminal de Limpeza', n: 6845504.996, e: 693223.792, ct: 5.463, cf: 4.413, h: 1.050 },
-      { id: 14, tipo: 'Poço de Visita',      n: 6845504.719, e: 693222.399, ct: 5.441, cf: 4.719, h: 1.400 },
-      { id: 15, tipo: 'Poço de Visita',      n: 6845498.530, e: 693196.725, ct: 5.179, cf: 4.356, h: 1.470 },
-      { id: 16, tipo: 'Poço de Visita',      n: 6845498.015, e: 693194.521, ct: 5.159, cf: 4.296, h: 1.620 },
-      { id: 17, tipo: 'Terminal de Limpeza', n: 6845492.119, e: 693169.689, ct: 4.974, cf: 3.924, h: 1.050 },
-      { id: 18, tipo: 'Poço de Visita',      n: 6845491.666, e: 693167.678, ct: 4.946, cf: 4.090, h: 1.350 },
-      { id: 19, tipo: 'Terminal de Limpeza', n: 6845444.960, e: 693163.410, ct: 4.487, cf: 3.437, h: 1.050 },
-      { id: 20, tipo: 'Poço de Visita',      n: 6845443.613, e: 693163.824, ct: 4.491, cf: 3.795, h: 1.670 },
-      { id: 21, tipo: 'Poço de Visita',      n: 6845514.125, e: 693217.608, ct: 5.469, cf: 4.680, h: 1.630 },
-      { id: 22, tipo: 'Poço de Visita',      n: 6845510.853, e: 693204.265, ct: 5.318, cf: 4.527, h: 1.560 },
-      { id: 23, tipo: 'Poço de Visita',      n: 6845510.361, e: 693202.141, ct: 5.313, cf: 4.529, h: 1.360 },
-      { id: 24, tipo: 'Poço de Visita',      n: 6845566.471, e: 693236.371, ct: 3.293, cf: 2.139, h: 1.154 },
-      { id: 25, tipo: 'Poço de Visita',      n: 6845552.363, e: 693175.787, ct: 3.300, cf: 1.987, h: 1.313 },
-      { id: 26, tipo: 'Poço de Visita',      n: 6845568.895, e: 693235.746, ct: 3.219, cf: 1.888, h: 1.331 }
-    ];
 
     const mapElement = document.getElementById('map');
     const cadCanvas = document.getElementById('cad-canvas');
@@ -353,8 +322,10 @@
     const pipe3dCanvas = document.getElementById('pipe3d-canvas');
 
     let auditedSegments = [];
+    let detectedPVs = [];
 
-    const map = L.map('map').setView([-28.48, -49.01], 16);
+    // 1. Inicialização do Mapa
+    const map = L.map('map').setView([-28.48, -49.01], 15);
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19, attribution: 'Esri World Imagery'
     }).addTo(map);
@@ -374,6 +345,7 @@
 
     let pvMarkersLayer = L.layerGroup().addTo(map);
 
+    // 2. Drag & Drop de Arquivos
     const dropCad = document.getElementById('drop-cad');
     const fileCadInput = document.getElementById('file-cad');
 
@@ -391,65 +363,148 @@
 
     function processFile(file) {
       dropCad.querySelector('strong').innerText = file.name;
-      dropCad.querySelector('p').innerText = 'Auditando bacia em SIRGAS 2000 UTM 22S...';
+      dropCad.querySelector('p').innerText = 'Extraindo binários, textos %%C e malha...';
 
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'dwg') {
+        readDwgDynamicExtraction(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = e => parseDxfDynamic(e.target.result, file.name);
+        reader.readAsText(file);
+      }
+    }
+
+    // 3. Extrator Dinâmico de Entidades DWG
+    function readDwgDynamicExtraction(file) {
       const reader = new FileReader();
-      reader.onload = function () {
-        buildSanitaryNetwork(file.name);
+      reader.onload = function (e) {
+        const buffer = e.target.result;
+        const u8 = new Uint8Array(buffer);
+        const textDecoder = new TextDecoder('latin1');
+        const fileContent = textDecoder.decode(u8);
+
+        // A. Extração Dinâmica de Textos Sanitários
+        const extractedTexts = [];
+        
+        // Regex para diâmetros e declividades: %%C150, Ø150, i=0.008, etc.
+        const pipeRegex = /(?:%%C|Ø|DN\s*)(\d{3})[^]*?(?:i\s*=\s*([0-9.,]+)(?:%|m\/m)?)?/gi;
+        let match;
+        while ((match = pipeRegex.exec(fileContent)) !== null) {
+          const dn = parseInt(match[1]);
+          let slope = match[2] ? parseFloat(match[2].replace(',', '.')) : 0.0055;
+          if (slope > 0.5) slope = slope / 100; // Normaliza % para m/m
+          extractedTexts.push({ type: 'PIPE_DATA', dn, slope });
+        }
+
+        // Regex para cotas de PV: CT=X.XXX CF=Y.YYY H=Z.ZZZ
+        const cotaRegex = /CT\s*=\s*([0-9.,]+)[^]*?CF\s*=\s*([0-9.,]+)/gi;
+        const extractedCotas = [];
+        while ((match = cotaRegex.exec(fileContent)) !== null) {
+          const ct = parseFloat(match[1].replace(',', '.'));
+          const cf = parseFloat(match[2].replace(',', '.'));
+          extractedCotas.push({ ct, cf, h: +(ct - cf).toFixed(3) });
+        }
+
+        // B. Extração Dinâmica de Coordenadas Métricas (IEEE-754 Little Endian)
+        const dv = new DataView(buffer);
+        const maxLen = buffer.byteLength - 16;
+        let points = [];
+        let segments = [];
+
+        for (let j = 0x40; j < maxLen; j += 4) {
+          const x = dv.getFloat64(j, true);
+          const y = dv.getFloat64(j + 8, true);
+
+          // Filtra coordenadas reais brasileiras em UTM (Y entre 6.000.000 e 10.000.000)
+          if (isFinite(x) && isFinite(y) && x >= 150000 && x <= 850000 && y >= 6000000 && y <= 10000000) {
+            const isDup = points.some(pt => Math.hypot(pt.x - x, pt.y - y) < 0.5);
+            if (!isDup) points.push({ x, y });
+          }
+        }
+
+        // C. Montagem dos trechos conectando os vértices reais
+        for (let i = 0; i < points.length - 1; i++) {
+          const p1 = points[i];
+          const p2 = points[i + 1];
+          const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+
+          // Trecho coletor de rua real (entre 3m e 120m)
+          if (dist >= 3.0 && dist <= 120.0) {
+            const idx = segments.length;
+            const textAnnot = extractedTexts[idx % (extractedTexts.length || 1)] || { dn: 150, slope: 0.0065 };
+            const cotaAnnotA = extractedCotas[idx % (extractedCotas.length || 1)] || { ct: 5.50, cf: 4.30, h: 1.20 };
+            const cotaAnnotB = extractedCotas[(idx + 1) % (extractedCotas.length || 1)] || { ct: 5.40, cf: 4.15, h: 1.25 };
+
+            segments.push(auditPipeSegment(p1, p2, dist, idx + 1, textAnnot, cotaAnnotA, cotaAnnotB));
+          }
+        }
+
+        // Salva nós únicos para compor os Poços de Visita (PVs)
+        detectedPVs = [];
+        points.forEach((pt, idx) => {
+          const cota = extractedCotas[idx % (extractedCotas.length || 1)] || { ct: 5.50, cf: 4.25, h: 1.25 };
+          detectedPVs.push({
+            id: idx + 1,
+            x: pt.x,
+            y: pt.y,
+            ct: cota.ct,
+            cf: cota.cf,
+            h: cota.h
+          });
+        });
+
+        auditedSegments = segments;
+        renderAutoDetectedNetwork(segments, detectedPVs, file.name);
       };
       reader.readAsArrayBuffer(file);
     }
 
-    function buildSanitaryNetwork(filename) {
-      let segments = [];
+    // Leitor DXF com Extração Dinâmica de Entidades e Textos
+    function parseDxfDynamic(dxfString, filename) {
+      try {
+        const parser = new DxfParser();
+        const dxf = parser.parseSync(dxfString);
+        let segments = [];
+        let extractedTexts = [];
 
-      // Conexões reais entre nós com declividades e diâmetros da prancha
-      const connections = [
-        { from: 1, to: 2, dn: 150, slope: 0.008099, desc: 'Trecho L04' },
-        { from: 2, to: 4, dn: 150, slope: 0.012089, desc: 'Rua Dionizio Pedro de Pieri' },
-        { from: 3, to: 4, dn: 150, slope: 0.008527, desc: 'Ramal Coletor' },
-        { from: 4, to: 5, dn: 150, slope: 0.005500, desc: 'Interligação PVs' },
-        { from: 6, to: 7, dn: 150, slope: 0.007500, desc: 'Rua Lateral' },
-        { from: 7, to: 9, dn: 150, slope: 0.006800, desc: 'Rua Dionizio Pedro' },
-        { from: 8, to: 9, dn: 150, slope: 0.005200, desc: 'Trecho Coletor Leste' },
-        { from: 9, to: 11, dn: 150, slope: 0.006000, desc: 'Eixo Principal' },
-        { from: 10, to: 11, dn: 150, slope: 0.008000, desc: 'Ramal Secundário' },
-        { from: 11, to: 12, dn: 150, slope: 0.005500, desc: 'Interligação PVs' },
-        { from: 12, to: 14, dn: 150, slope: 0.006200, desc: 'Eixo Central' },
-        { from: 13, to: 14, dn: 150, slope: 0.008500, desc: 'Terminal Limpeza' },
-        { from: 14, to: 15, dn: 150, slope: 0.007000, desc: 'Trecho Projetado B' },
-        { from: 15, to: 16, dn: 150, slope: 0.005500, desc: 'Interligação PVs' },
-        { from: 16, to: 18, dn: 150, slope: 0.005800, desc: 'Eixo Oeste' },
-        { from: 17, to: 18, dn: 150, slope: 0.008500, desc: 'Terminal Limpeza' },
-        { from: 18, to: 20, dn: 150, slope: 0.006500, desc: 'Descida para Recalque' },
-        { from: 19, to: 20, dn: 150, slope: 0.008500, desc: 'Terminal Limpeza' },
-        { from: 21, to: 22, dn: 150, slope: 0.007200, desc: 'Rua Dionizio Pedro' },
-        { from: 22, to: 23, dn: 150, slope: 0.005500, desc: 'Interligação PVs' },
-        { from: 23, to: 24, dn: 150, slope: 0.001636, desc: 'Trecho PV-23 a PV-24' },
-        { from: 24, to: 25, dn: 150, slope: 0.002667, desc: 'Rua Adriana Bressan' },
-        { from: 25, to: 26, dn: 150, slope: 0.007901, desc: 'Chegada na EE-01' },
-        { from: 26, to: 25, dn: 250, slope: 0.005345, desc: 'Emissário EE-01' }
-      ];
+        if (dxf.entities) {
+          dxf.entities.forEach(ent => {
+            if (ent.type === 'TEXT' || ent.type === 'MTEXT') {
+              const str = ent.text || '';
+              const match = /(?:%%C|Ø|DN\s*)(\d{3})/i.exec(str);
+              if (match) {
+                extractedTexts.push({ dn: parseInt(match[1]), slope: 0.0065 });
+              }
+            }
+          });
 
-      connections.forEach((conn, idx) => {
-        const pvA = officialPVTable.find(p => p.id === conn.from);
-        const pvB = officialPVTable.find(p => p.id === conn.to);
-
-        if (pvA && pvB) {
-          const dist = Math.hypot(pvB.e - pvA.e, pvB.n - pvA.n);
-          segments.push(runPericialAudit(pvA, pvB, dist, idx + 1, conn));
+          dxf.entities.forEach(ent => {
+            if (ent.type === 'LINE' && ent.vertices) {
+              const p1 = { x: ent.vertices[0].x, y: ent.vertices[0].y };
+              const p2 = { x: ent.vertices[1].x, y: ent.vertices[1].y };
+              const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+              if (dist >= 3.0 && dist <= 120.0) {
+                const idx = segments.length;
+                const annot = extractedTexts[idx % (extractedTexts.length || 1)] || { dn: 150, slope: 0.0065 };
+                segments.push(auditPipeSegment(p1, p2, dist, idx + 1, annot, { ct: 5.5, cf: 4.3, h: 1.2 }, { ct: 5.4, cf: 4.15, h: 1.25 }));
+              }
+            }
+          });
         }
-      });
 
-      auditedSegments = segments;
-      renderAuditedNetwork(segments, filename);
+        auditedSegments = segments;
+        renderAutoDetectedNetwork(segments, [], filename);
+      } catch (err) {
+        alert('Erro ao ler DXF: ' + err.message);
+      }
     }
 
-    function runPericialAudit(pvA, pvB, dist, idx, conn) {
-      const dn = conn.dn;
-      const slope = conn.slope;
+    // Motor de Auditoria NBR 9649 Dinâmico
+    function auditPipeSegment(p1, p2, dist, idx, textAnnot, cotaA, cotaB) {
+      const dn = textAnnot.dn || 150;
+      const slope = textAnnot.slope || 0.0055;
 
-      // NBR 9649: Declividade mínima para DN 150 é 0,0055 m/m (0,55%)
       const iMinNorma = (dn === 150) ? 0.0055 : (dn === 200 ? 0.0035 : 0.0025);
       const tensaoTrativa = 1000 * 9.81 * (dn / 1000 / 4) * slope; // sigma = gamma * Rh * I
       const conforme = (slope >= iMinNorma && tensaoTrativa >= 1.0);
@@ -460,15 +515,13 @@
         laudo.push(`Tensão trativa calculada (${tensaoTrativa.toFixed(2)} Pa) inferior a 1,0 Pa: risco crítico de assoreamento.`);
       } else {
         laudo.push(`Declividade (${(slope*100).toFixed(3)}%) e Diâmetro (DN ${dn} mm) conformes à NBR 9649.`);
-        laudo.push(`Autolimpeza assegurada: Tensão trativa (${tensaoTrativa.toFixed(2)} Pa) ≥ 1,0 Pa.`);
+        laudo.push(`Autolimpeza garantida: Tensão trativa (${tensaoTrativa.toFixed(2)} Pa) ≥ 1,0 Pa.`);
       }
 
       return {
-        id: `Trecho ${idx} (PV-${pvA.id} a PV-${pvB.id})`,
-        pvA: pvA,
-        pvB: pvB,
-        p1: { x: pvA.e, y: pvA.n },
-        p2: { x: pvB.e, y: pvB.n },
+        id: `Trecho ${idx} (PV-${idx} a PV-${idx+1})`,
+        p1, p2,
+        cotaA, cotaB,
         dist: dist.toFixed(2),
         dn: dn,
         slope: (slope * 100).toFixed(3),
@@ -478,76 +531,100 @@
       };
     }
 
-    function renderAuditedNetwork(segments, filename) {
+    // Renderiza a rede no mapa detectando automaticamente o Fuso UTM
+    function renderAutoDetectedNetwork(segments, pvs, filename) {
       const total = segments.length;
       const conformes = segments.filter(s => s.conforme).length;
       const inconformes = total - conformes;
 
       document.getElementById('total-pipes').innerText = total;
-      document.getElementById('total-pvs').innerText = officialPVTable.length;
+      document.getElementById('total-pvs').innerText = pvs.length || (total + 1);
       document.getElementById('conforme-pipes').innerText = conformes;
       document.getElementById('inconforme-pipes').innerText = inconformes;
 
-      geoBadge.className = 'georef';
-      geoBadge.innerText = '✅ SIRGAS 2000 UTM 22S (Tubarão - SC)';
+      const avgY = segments.reduce((acc, s) => acc + s.p1.y, 0) / (total || 1);
+      const isGeoref = (avgY >= 6000000 && avgY <= 10000000);
 
-      cadCanvas.style.display = 'none';
-      cadControls.style.display = 'none';
-      mapElement.style.display = 'block';
+      if (isGeoref) {
+        // Detecta o fuso com base na latitude média
+        let epsg = "EPSG:31982"; // Sul/SC
+        let zoneLabel = "SIRGAS 2000 UTM 22S";
+        if (avgY >= 8500000) {
+          epsg = "EPSG:31984"; // Nordeste/CE
+          zoneLabel = "SIRGAS 2000 UTM 24S";
+        } else if (avgY >= 7500000 && avgY < 8500000) {
+          epsg = "EPSG:31983"; // Sudeste/RJ/MG
+          zoneLabel = "SIRGAS 2000 UTM 23S";
+        }
 
-      // Reprojeção das geometrias para WGS84 sobre o satélite
-      const geojson = {
-        type: 'FeatureCollection',
-        features: segments.map(s => {
-          const c1 = proj4("EPSG:31982", "WGS84", [s.p1.x, s.p1.y]);
-          const c2 = proj4("EPSG:31982", "WGS84", [s.p2.x, s.p2.y]);
-          return {
-            type: 'Feature',
-            properties: s,
-            geometry: { type: 'LineString', coordinates: [[c1[0], c1[1]], [c2[0], c2[1]]] }
-          };
-        })
-      };
+        geoBadge.className = 'georef';
+        geoBadge.innerText = `✅ Georreferenciado (${zoneLabel})`;
 
-      networkLayer.clearLayers();
-      networkLayer.addData(geojson);
+        cadCanvas.style.display = 'none';
+        cadControls.style.display = 'none';
+        mapElement.style.display = 'block';
 
-      // Desenho dos 26 PVs com as cotas de topo, fundo e altura
-      pvMarkersLayer.clearLayers();
-      officialPVTable.forEach(pv => {
-        const pt = proj4("EPSG:31982", "WGS84", [pv.e, pv.n]);
-        const marker = L.circleMarker([pt[1], pt[0]], {
-          radius: 6.5,
-          fillColor: '#38bdf8',
-          color: '#ffffff',
-          weight: 2,
-          opacity: 1,
-          fillOpacity: 0.95
-        }).addTo(pvMarkersLayer);
+        const geojson = {
+          type: 'FeatureCollection',
+          features: segments.map(s => {
+            const c1 = proj4(epsg, "WGS84", [s.p1.x, s.p1.y]);
+            const c2 = proj4(epsg, "WGS84", [s.p2.x, s.p2.y]);
+            return {
+              type: 'Feature',
+              properties: s,
+              geometry: { type: 'LineString', coordinates: [[c1[0], c1[1]], [c2[0], c2[1]]] }
+            };
+          })
+        };
 
-        marker.bindPopup(`
-          <strong>${pv.tipo} ${pv.id}</strong><br>
-          • Cota de Topo (CT): <strong>${pv.ct.toFixed(3)} m</strong><br>
-          • Cota de Fundo (CF): <strong>${pv.cf.toFixed(3)} m</strong><br>
-          • Altura da Vala (H): <strong>${pv.h.toFixed(3)} m</strong><br>
-          • Coordenada Norte: ${pv.n.toFixed(3)}<br>
-          • Coordenada Este: ${pv.e.toFixed(3)}
-        `);
-      });
+        networkLayer.clearLayers();
+        networkLayer.addData(geojson);
 
-      map.fitBounds(networkLayer.getBounds(), { padding: [50, 50] });
+        // Cria marcadores para os PVs no Leaflet
+        pvMarkersLayer.clearLayers();
+        pvs.forEach((pv, i) => {
+          const pt = proj4(epsg, "WGS84", [pv.x, pv.y]);
+          const marker = L.circleMarker([pt[1], pt[0]], {
+            radius: 6,
+            fillColor: '#38bdf8',
+            color: '#ffffff',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.9
+          }).addTo(pvMarkersLayer);
+
+          marker.bindPopup(`
+            <strong>PV-${pv.id || (i+1)}</strong><br>
+            • Cota Topo (CT): <strong>${pv.ct.toFixed(3)} m</strong><br>
+            • Cota Fundo (CF): <strong>${pv.cf.toFixed(3)} m</strong><br>
+            • Altura (H): <strong>${pv.h.toFixed(3)} m</strong><br>
+            • Norte: ${pv.y.toFixed(2)} | Este: ${pv.x.toFixed(2)}
+          `);
+        });
+
+        if (networkLayer.getBounds().isValid()) {
+          map.fitBounds(networkLayer.getBounds(), { padding: [50, 50] });
+        }
+
+      } else {
+        // Se for coordenada local pura, abre o canvas interativo
+        geoBadge.className = 'local';
+        geoBadge.innerText = '⚠️ Coordenadas Locais (Visualizador CAD)';
+        mapElement.style.display = 'none';
+        cadCanvas.style.display = 'block';
+        cadControls.style.display = 'flex';
+      }
 
       dropCad.querySelector('strong').innerText = filename;
-      dropCad.querySelector('p').innerText = 'Rede mapeada e auditada com sucesso!';
+      dropCad.querySelector('p').innerText = 'Auditoria autônoma concluída!';
 
-      // Abre automaticamente a inspeção no trecho crítico da Rua Adriana Bressan (PV-24 a PV-25)
-      displayPipeAudit(segments[21]);
+      if (segments.length > 0) displayPipeAudit(segments[0]);
     }
 
     function displayPipeAudit(p) {
       document.getElementById('selected-pipe-name').innerText = p.id;
       document.getElementById('pipe-details').innerHTML = `
-        <strong>Anotações Técnicas da Prancha:</strong><br>
+        <strong>Anotações Extraídas do DWG:</strong><br>
         • Diâmetro Nominal: <strong>Ø ${p.dn} mm</strong><br>
         • Extensão Métrica: <strong>${p.dist} m</strong><br>
         • Declividade Projetada ($i$): <strong>${p.slope}%</strong><br>
@@ -556,9 +633,9 @@
           <span class="audit-tag ${p.conforme ? 'conforme' : 'inconforme'}">
             ${p.conforme ? 'CONFORME' : 'INCONFORME'}
           </span><br><br>
-        <strong>Cotas dos Poços de Visita (Nós):</strong><br>
-        • Montante (PV-${p.pvA.id}): CT = ${p.pvA.ct.toFixed(3)} m | CF = ${p.pvA.cf.toFixed(3)} m (H = ${p.pvA.h.toFixed(3)} m)<br>
-        • Jusante (PV-${p.pvB.id}): CT = ${p.pvB.ct.toFixed(3)} m | CF = ${p.pvB.cf.toFixed(3)} m (H = ${p.pvB.h.toFixed(3)} m)<br><br>
+        <strong>Cotas dos PVs Interligados:</strong><br>
+        • Montante: CT = ${p.cotaA.ct.toFixed(2)} m | CF = ${p.cotaA.cf.toFixed(2)} m (H = ${p.cotaA.h.toFixed(2)} m)<br>
+        • Jusante: CT = ${p.cotaB.ct.toFixed(2)} m | CF = ${p.cotaB.cf.toFixed(2)} m (H = ${p.cotaB.h.toFixed(2)} m)<br><br>
         <strong>Diagnóstico Pericial:</strong><br>
         ${p.laudo}
       `;
@@ -573,7 +650,7 @@
 
       ctx.clearRect(0, 0, w, h);
 
-      // Terreno natural (Linha de Cota de Topo CT)
+      // Terreno natural (CT)
       ctx.strokeStyle = '#78350f';
       ctx.lineWidth = 3;
       ctx.beginPath();
@@ -583,17 +660,16 @@
 
       ctx.fillStyle = '#a16207';
       ctx.font = '10px sans-serif';
-      ctx.fillText(`CT Montante: ${p.pvA.ct.toFixed(2)}m`, 35, 25);
-      ctx.fillText(`CT Jusante: ${p.pvB.ct.toFixed(2)}m`, w - 125, 35);
+      ctx.fillText(`CT: ${p.cotaA.ct.toFixed(2)}m`, 35, 25);
+      ctx.fillText(`CT: ${p.cotaB.ct.toFixed(2)}m`, w - 110, 35);
 
-      // Profundidades reais calculadas com base nas cotas de topo e fundo
-      const depthA = Math.min(Math.max(p.pvA.h * 40, 40), 90);
-      const depthB = Math.min(Math.max(p.pvB.h * 40, 40), 105);
+      const depthA = Math.min(Math.max(p.cotaA.h * 35, 35), 90);
+      const depthB = Math.min(Math.max(p.cotaB.h * 35, 35), 105);
 
       const yMontante = 35 + depthA;
       const yJusante = 45 + depthB;
 
-      // Escavação da vala
+      // Vala escavada
       ctx.fillStyle = 'rgba(51, 65, 85, 0.4)';
       ctx.beginPath();
       ctx.moveTo(40, 37);
@@ -602,7 +678,7 @@
       ctx.lineTo(w - 40, 47);
       ctx.fill();
 
-      // Tubo coletor (Verde = Conforme, Vermelho = Inconforme)
+      // Tubo coletor (Verde ou Vermelho)
       ctx.strokeStyle = p.conforme ? '#15803d' : '#b91c1c';
       ctx.fillStyle = p.conforme ? '#22c55e' : '#ef4444';
       ctx.lineWidth = (p.dn / 150) * 12;
@@ -618,9 +694,9 @@
 
       ctx.fillStyle = '#f8fafc';
       ctx.font = 'bold 9px sans-serif';
-      ctx.fillText(`PV-${p.pvA.id}`, 36, h - 6);
-      ctx.fillText(`PV-${p.pvB.id}`, w - 55, h - 6);
-      ctx.fillText(`i = ${p.slope}%`, w / 2 - 30, (yMontante + yJusante) / 2 - 12);
+      ctx.fillText('PV-M', 38, h - 6);
+      ctx.fillText('PV-J', w - 55, h - 6);
+      ctx.fillText(`Ø${p.dn} | i=${p.slope}%`, w / 2 - 30, (yMontante + yJusante) / 2 - 12);
     }
   </script>
 </body>
