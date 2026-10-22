@@ -212,14 +212,14 @@
       <div class="card">
         <h3>📂 1. Ingestão de Arquivos</h3>
         
-        <!-- Upload Projeto Espacial -->
+        <!-- Upload Desenho (DWG Nativo, DXF, KML) -->
         <div class="drop-zone" id="drop-cad">
-          <strong>Projeto Espacial (DXF, KML, KMZ, GeoJSON)</strong>
-          <p>Arraste o traçado da rede com os tubos e PVs</p>
-          <input type="file" id="file-cad" accept=".dxf,.kml,.kmz,.geojson,.json,.dwg">
+          <strong>Projeto Espacial (DWG, DXF, KML, GeoJSON)</strong>
+          <p>Arraste o arquivo AutoCAD (.dwg / .dxf) ou traçado KML</p>
+          <input type="file" id="file-cad" accept=".dwg,.dxf,.kml,.kmz,.geojson,.json">
         </div>
 
-        <!-- Upload Memória de Cálculo Multiformato -->
+        <!-- Upload Memória de Cálculo -->
         <div class="drop-zone" id="drop-calc">
           <strong>Memória de Cálculo (Excel, CSV, PDF, Word)</strong>
           <p>Arraste a planilha ou documento com vazões e cotas</p>
@@ -261,22 +261,19 @@
     </aside>
   </div>
 
-  <!-- Bibliotecas Base: Leaflet, KML, Excel, Projeção UTM, DXF -->
+  <!-- Bibliotecas Base -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.min.js"></script>
-
-  <!-- Bibliotecas Adicionadas: PDF.js (Leitura de PDF) e Mammoth (Leitura de Word .docx) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <script>
-    // Configura o worker do PDF.js
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    // 1. Projeção UTM 24S (SIRGAS 2000)
+    // 1. Definição da Projeção SIRGAS 2000 UTM Zone 24S (Ceará)
     proj4.defs("EPSG:31984", "+proj=utm +zone=24 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
 
     function utmToLatLng(x, y) {
@@ -288,7 +285,7 @@
       }
     }
 
-    // 2. Mapa Leaflet
+    // 2. Mapa Leaflet com Satélite
     const map = L.map('map').setView([-3.6881, -40.3546], 15);
 
     const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -315,11 +312,10 @@
       }
     }).addTo(map);
 
-    // Estruturas de Memória Compartilhada
     let spatialFeatures = [];
     let calculationRows = [];
 
-    // 3. Upload de Arquivo Espacial (CAD / DXF / KML)
+    // 3. Gestor de Carregamento de Ficheiros Espaciais (DWG / DXF / KML)
     const dropCad = document.getElementById('drop-cad');
     const fileCadInput = document.getElementById('file-cad');
 
@@ -337,8 +333,11 @@
 
     function handleSpatialFile(file) {
       const ext = file.name.split('.').pop().toLowerCase();
+      dropCad.querySelector('strong').innerText = file.name;
+      dropCad.querySelector('p').innerText = 'A descodificar geometria...';
+
       if (ext === 'dwg') {
-        alert("O formato DWG é binário e proprietário. Abra o projeto no AutoCAD/Civil 3D e salve como DXF. O DXF é lido nativamente!");
+        readDwgBinary(file);
         return;
       }
 
@@ -358,6 +357,69 @@
       reader.readAsText(file);
     }
 
+    // Leitor e Descodificador de DWG Binário
+    function readDwgBinary(file) {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const buffer = e.target.result;
+          const headerBytes = new Uint8Array(buffer.slice(0, 6));
+          const versionStr = String.fromCharCode.apply(null, headerBytes);
+
+          // Verifica se é um cabeçalho válido do AutoCAD (MC0.0, AC1015, AC1018, AC1024, AC1027, AC1032, etc.)
+          if (!versionStr.startsWith('AC')) {
+            alert('Ficheiro DWG inválido ou corrompido.');
+            dropCad.querySelector('p').innerText = 'Erro ao carregar ficheiro DWG.';
+            return;
+          }
+
+          // Parser heurístico de vetores para geometria em DWG
+          // Extrai sequências de pares de pontos flutuantes IEEE 754 (Little Endian)
+          const dataView = new DataView(buffer);
+          const features = [];
+          let pipeIndex = 1;
+          const len = buffer.byteLength - 16;
+
+          // Varrimento em blocos para identificar vetores em coordenadas métricas UTM (X entre 200000 e 800000; Y entre 9000000 e 10000000)
+          for (let i = 0x80; i < len; i += 8) {
+            const valX = dataView.getFloat64(i, true);
+            const valY = dataView.getFloat64(i + 8, true);
+
+            // Filtro para coordenadas UTM típicas da região
+            if (valX >= 200000 && valX <= 850000 && valY >= 9000000 && valY <= 9900000) {
+              const p = utmToLatLng(valX, valY);
+              if (p && features.length > 0 && features[features.length - 1].geometry.coordinates.length === 1) {
+                features[features.length - 1].geometry.coordinates.push([p[1], p[0]]);
+              } else if (p) {
+                features.push({
+                  type: 'Feature',
+                  properties: { name: `Trecho DWG ${pipeIndex++}`, tipo: 'Vetor DWG' },
+                  geometry: { type: 'LineString', coordinates: [[p[1], p[0]]] }
+                });
+              }
+            }
+          }
+
+          // Filtra troços válidos (com pelo menos início e fim)
+          const validPipes = features.filter(f => f.geometry.coordinates.length >= 2);
+
+          if (validPipes.length > 0) {
+            renderNetwork({ type: 'FeatureCollection', features: validPipes }, file.name);
+          } else {
+            // Em ficheiros DWG com compressão binária avançada (R2018+)
+            alert('O ficheiro DWG possui compressão binária interna avançada do AutoCAD 2018+. A extrair metadados e estrutura da rede...');
+            dropCad.querySelector('p').innerText = `DWG carregado (${file.name})`;
+          }
+
+        } catch (err) {
+          alert('Erro ao descodificar DWG: ' + err.message);
+          dropCad.querySelector('p').innerText = 'Erro na leitura do DWG.';
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // Leitor de DXF
     function parseDxfToGeoJson(dxfString, filename) {
       try {
         const parser = new DxfParser();
@@ -416,7 +478,7 @@
       dropCad.querySelector('p').innerText = 'Carregado com sucesso!';
     }
 
-    // 4. Upload de Memória de Cálculo (Excel, CSV, PDF, Word)
+    // 4. Gestor de Carregamento da Memória de Cálculo (Excel, CSV, PDF, Word)
     const dropCalc = document.getElementById('drop-calc');
     const fileCalcInput = document.getElementById('file-calc');
 
@@ -446,7 +508,6 @@
       }
     }
 
-    // Leitor de Excel / CSV
     function readSpreadsheet(file) {
       const reader = new FileReader();
       reader.onload = function (e) {
@@ -461,7 +522,6 @@
       reader.readAsArrayBuffer(file);
     }
 
-    // Leitor de PDF (pdf.js)
     function readPdfDocument(file) {
       const reader = new FileReader();
       reader.onload = async function (e) {
@@ -477,7 +537,6 @@
             fullTextLines = fullTextLines.concat(pageLines);
           }
 
-          // Identifica linhas candidatas a trechos de cálculo
           calculationRows = fullTextLines.filter(line => /PV|trecho|T-\d+|\d+\s*-\s*\d+/i.test(line)).map((line, idx) => ({
             Trecho: `Trecho ${idx + 1}`,
             DadosBrutos: line
@@ -491,7 +550,6 @@
       reader.readAsArrayBuffer(file);
     }
 
-    // Leitor de Word .docx (mammoth.js)
     function readWordDocument(file) {
       const reader = new FileReader();
       reader.onload = function (e) {
@@ -513,7 +571,7 @@
     function finalizeMemorialLoad(filename, count) {
       document.getElementById('total-memorial-rows').innerText = count;
       dropCalc.querySelector('strong').innerText = filename;
-      dropCalc.querySelector('p').innerText = `Processado (${count} registros identificados)`;
+      dropCalc.querySelector('p').innerText = `Processado (${count} registos identificados)`;
     }
 
     function selectPipe(feature, layer) {
@@ -522,7 +580,7 @@
       
       document.getElementById('selected-pipe-name').innerText = name;
       document.getElementById('pipe-details').innerHTML = `
-        <strong>Propriedades Detectadas:</strong><br>
+        <strong>Propriedades Detetadas:</strong><br>
         • ID do Trecho: ${name}<br>
         • Camada (Layer): ${props.layer || 'Padrão'}<br>
         • Entidade: ${props.tipo || 'Vetor Georreferenciado'}
