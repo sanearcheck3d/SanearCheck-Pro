@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>SanearCheck Pro — Auditoria Pericial & SIG</title>
 
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
@@ -101,6 +102,11 @@
       z-index: 15;
       display: none;
       touch-action: none;
+      cursor: grab;
+    }
+
+    #cad-canvas:active {
+      cursor: grabbing;
     }
 
     .cad-controls {
@@ -327,7 +333,7 @@
     let camera = { x: 0, y: 0, scale: 1, baseScale: 1, minX: 0, maxX: 100, minY: 0, maxY: 100 };
     let isDragging = false, dragStart = { x: 0, y: 0 };
 
-    const map = L.map('map').setView([-3.73, -38.52], 15);
+    const map = L.map('map').setView([-3.68, -40.35], 15);
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19, attribution: 'Esri World Imagery'
     }).addTo(map);
@@ -344,9 +350,22 @@
 
     let pvMarkersLayer = L.layerGroup().addTo(map);
 
-    document.getElementById('btn-export-pdf').onclick = () => window.print();
-    document.getElementById('btn-run-audit').onclick = () => alert('⚡ Reavaliação pericial concluída com sucesso!');
-    document.getElementById('btn-fix-project').onclick = () => alert('🛠 Otimizador: Os trechos com declividade insuficiente foram destacados.');
+    // Ações dos botões superiores
+    document.getElementById('btn-export-pdf').onclick = () => {
+      window.print();
+    };
+    document.getElementById('btn-run-audit').onclick = () => {
+      if (auditedSegments.length === 0) {
+        alert('Carregue um projeto de esgoto primeiro.');
+        return;
+      }
+      renderExtractedProject(auditedSegments, detectedPVs, document.querySelector('.drop-zone strong').innerText);
+      alert('⚡ Reavaliação pericial executada com sucesso contra NBR 9649.');
+    };
+    document.getElementById('btn-fix-project').onclick = () => {
+      const inconformes = auditedSegments.filter(s => !s.conforme);
+      alert(`🛠 Otimizador Pericial: ${inconformes.length} trecho(s) inconforme(s) detetado(s). Ajuste as cotas de fundo no perfil longitudinal.`);
+    };
 
     const dropCad = document.getElementById('drop-cad');
     const fileCadInput = document.getElementById('file-cad');
@@ -365,15 +384,15 @@
 
     function processFile(file) {
       dropCad.querySelector('strong').innerText = file.name;
-      dropCad.querySelector('p').innerText = 'A isolar redes coletoras de esgoto...';
+      dropCad.querySelector('p').innerText = 'A processar geometria DXF...';
 
       const reader = new FileReader();
-      reader.onload = e => parseDxfOnlySewer(e.target.result, file.name);
+      reader.onload = e => parseDxfClean(e.target.result, file.name);
       reader.readAsText(file);
     }
 
-    // Parser DXF com isolamento exclusivo de tubulações de esgoto sanitário
-    function parseDxfOnlySewer(dxfString, filename) {
+    // Parser DXF Limpo e Focado em Saneamento
+    function parseDxfClean(dxfString, filename) {
       try {
         const parser = new DxfParser();
         const dxf = parser.parseSync(dxfString);
@@ -385,17 +404,17 @@
           entities.forEach(ent => {
             const layer = (ent.layer || '').toUpperCase();
             
-            // FILTRO DE ENGENHARIA RIGOROSO: Apenas camadas de esgoto sanitário
-            const isSewerLayer = /SSWR|ESGOTO|COLETOR|SANITARY|REDE|ESG|TIGRECAD|B18A|FLUXO/i.test(layer);
-            const isTopoOrLot = /HATCH|TOPO|CONT|PROP|ROAD|ANNO|DIM|MOLDURA|CARIMBO|ARQ|ALVENARIA|PAREDE|PISO|MOBILIARIO|QUADRA|LOTE|MDT|CURVAS|TEXTO-80/i.test(layer);
+            // Aceita linhas de redes de esgoto ou polilinhas com comprimento de rua
+            const isSewer = /SSWR|ESGOTO|COLETOR|SANITARY|REDE|ESG|TIGRECAD|B18A|PROJ|REDE_ESGOTO|Rede-Proj/i.test(layer);
+            const isNoisy = /HATCH|TOPO|CONT|PROP|ROAD|ANNO|DIM|MOLDURA|CARIMBO|ARQ|ALVENARIA|PAREDE|PISO|MOBILIARIO|QUADRA|LOTE|MDT|CURVAS|TEXTO-80/i.test(layer);
 
-            if (isSewerLayer && !isTopoOrLot) {
+            if ((isSewer && !isNoisy) || (!isNoisy && ent.type === 'LINE')) {
               if (ent.type === 'LINE') {
                 const start = ent.vertices ? ent.vertices[0] : ent.start;
                 const end = ent.vertices ? ent.vertices[1] : ent.end;
                 if (start && end) {
                   const dist = Math.hypot(end.x - start.x, end.y - start.y);
-                  if (dist >= 2.0 && dist <= 120.0) {
+                  if (dist >= 3.0 && dist <= 120.0) {
                     rawLines.push({ p1: { x: start.x, y: start.y }, p2: { x: end.x, y: end.y }, layer });
                   }
                 }
@@ -405,7 +424,7 @@
                     const p1 = ent.vertices[i];
                     const p2 = ent.vertices[i+1];
                     const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-                    if (dist >= 2.0 && dist <= 120.0) {
+                    if (dist >= 3.0 && dist <= 120.0) {
                       rawLines.push({ p1: { x: p1.x, y: p1.y }, p2: { x: p2.x, y: p2.y }, layer });
                     }
                   }
@@ -436,7 +455,7 @@
 
     function buildSanitaryNetwork(lines, texts, filename) {
       if (!lines || lines.length === 0) {
-        alert('Nenhum coletor de esgoto foi detetado nas camadas sanitárias deste DXF.');
+        alert('Nenhum coletor de esgoto foi encontrado. Verifique se o ficheiro DXF contém as linhas da rede.');
         return;
       }
 
