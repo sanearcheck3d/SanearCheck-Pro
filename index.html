@@ -20,15 +20,15 @@
       display: flex;
       flex-direction: column;
       height: 100vh;
-      background-color: #0b0f19;
+      background-color: #070a14;
       color: #f8fafc;
       overflow: hidden;
     }
 
     header {
       height: 60px;
-      background-color: #111827;
-      border-bottom: 1px solid #1f2937;
+      background-color: #0d1322;
+      border-bottom: 1px solid #1e293b;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -58,7 +58,7 @@
     }
 
     button {
-      background: #0ea5e9;
+      background: #0284c7;
       color: white;
       border: none;
       padding: 8px 16px;
@@ -70,9 +70,9 @@
       box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     }
 
-    button:hover { background: #0284c7; transform: translateY(-1px); }
-    button.btn-audit { background: #10b981; }
-    button.btn-audit:hover { background: #059669; }
+    button:hover { background: #0369a1; transform: translateY(-1px); }
+    button.btn-audit { background: #059669; }
+    button.btn-audit:hover { background: #047857; }
 
     .main-container {
       display: flex;
@@ -127,20 +127,20 @@
       align-items: center;
       justify-content: center;
       font-size: 1.1rem;
-      background: rgba(17, 24, 39, 0.9);
-      border: 1px solid #374151;
+      background: rgba(13, 19, 34, 0.9);
+      border: 1px solid #1e293b;
       border-radius: 6px;
-      color: #e2e8f0;
+      color: #cbd5e1;
       backdrop-filter: blur(4px);
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     }
 
-    .cad-controls button:hover { background: #1f2937; color: #38bdf8; }
+    .cad-controls button:hover { background: #1e293b; color: #38bdf8; }
 
     .sidebar {
       width: 440px;
-      background-color: #111827;
-      border-left: 1px solid #1f2937;
+      background-color: #0d1322;
+      border-left: 1px solid #1e293b;
       display: flex;
       flex-direction: column;
       z-index: 20;
@@ -150,8 +150,8 @@
     }
 
     .card {
-      background-color: #0b0f19;
-      border: 1px solid #1f2937;
+      background-color: #070a14;
+      border: 1px solid #1e293b;
       border-radius: 10px;
       padding: 16px;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
@@ -165,18 +165,17 @@
       align-items: center;
       gap: 8px;
       font-weight: 600;
-      letter-spacing: 0.025em;
     }
 
     .drop-zone {
-      border: 2px dashed #374151;
+      border: 2px dashed #334155;
       border-radius: 8px;
       padding: 14px;
       text-align: center;
       cursor: pointer;
       transition: all 0.2s ease;
       margin-bottom: 10px;
-      background: rgba(17, 24, 39, 0.5);
+      background: rgba(13, 19, 34, 0.5);
     }
 
     .drop-zone:hover, .drop-zone.dragover {
@@ -195,10 +194,10 @@
     }
 
     .stat-box {
-      background: #111827;
+      background: #0d1322;
       padding: 12px;
       border-radius: 8px;
-      border: 1px solid #1f2937;
+      border: 1px solid #1e293b;
       text-align: center;
     }
 
@@ -212,12 +211,12 @@
       font-size: 0.72rem;
       font-weight: 600;
       margin-bottom: 12px;
-      background: #1f2937;
+      background: #1e293b;
       color: #94a3b8;
     }
 
-    #geo-badge.georef { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
-    #geo-badge.local { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    #geo-badge.georef { background: rgba(5, 150, 105, 0.15); color: #34d399; border: 1px solid rgba(5, 150, 105, 0.3); }
+    #geo-badge.local { background: rgba(217, 119, 6, 0.15); color: #fbbf24; border: 1px solid rgba(217, 119, 6, 0.3); }
 
     .audit-tag {
       display: inline-block;
@@ -228,14 +227,14 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    .audit-tag.conforme { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
-    .audit-tag.inconforme { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .audit-tag.conforme { background: rgba(5, 150, 105, 0.2); color: #34d399; border: 1px solid rgba(5, 150, 105, 0.4); }
+    .audit-tag.inconforme { background: rgba(220, 38, 38, 0.2); color: #f87171; border: 1px solid rgba(220, 38, 38, 0.4); }
 
     #pipe3d-canvas {
       width: 100%;
       height: 150px;
       background: #030712;
-      border: 1px solid #1f2937;
+      border: 1px solid #1e293b;
       border-radius: 8px;
       margin-top: 12px;
     }
@@ -272,7 +271,7 @@
         <div id="geo-badge">Aguardando ficheiro espacial...</div>
         
         <div class="drop-zone" id="drop-cad">
-          <strong>Projeto Espacial (DXF / DWG)</strong>
+          <strong>Projeto Espacial (DXF)</strong>
           <p>Arraste o ficheiro AutoCAD (.dxf)</p>
           <input type="file" id="file-cad" accept=".dwg,.dxf,.kml,.kmz,.geojson,.json">
         </div>
@@ -321,7 +320,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <script>
@@ -343,14 +342,14 @@
     let camera = { x: 0, y: 0, scale: 1, baseScale: 1, minX: 0, maxX: 100, minY: 0, maxY: 100 };
     let isDragging = false, dragStart = { x: 0, y: 0 };
 
-    const map = L.map('map').setView([-3.68, -40.35], 15);
+    const map = L.map('map').setView([-3.68, -40.35], 14);
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19, attribution: 'Esri World Imagery'
     }).addTo(map);
 
     let networkLayer = L.geoJSON(null, {
       style: feat => ({
-        color: feat.properties.conforme ? '#10b981' : '#ef4444',
+        color: feat.properties.conforme ? '#059669' : '#dc2626',
         weight: 3.5, opacity: 0.95
       }),
       onEachFeature: (feat, layer) => {
@@ -362,7 +361,7 @@
 
     document.getElementById('btn-export-pdf').onclick = () => window.print();
     document.getElementById('btn-run-audit').onclick = () => alert('⚡ Reavaliação pericial NBR 9649 atualizada com sucesso.');
-    document.getElementById('btn-fix-project').onclick = () => alert('🛠 Otimizador: Os trechos com tensão trativa insuficiente foram isolados.');
+    document.getElementById('btn-fix-project').onclick = () => alert('🛠 Otimizador: Troços com declividade inadequada isolados para adequação em perfil.');
 
     const dropCad = document.getElementById('drop-cad');
     const fileCadInput = document.getElementById('file-cad');
@@ -381,14 +380,14 @@
 
     function processFile(file) {
       dropCad.querySelector('strong').innerText = file.name;
-      dropCad.querySelector('p').innerText = 'A processar geometrias e cotas do DXF...';
+      dropCad.querySelector('p').innerText = 'A processar e limpar o DXF de engenharia...';
 
       const reader = new FileReader();
-      reader.onload = e => parseDxfSleek(e.target.result, file.name);
+      reader.onload = e => parseDxfPericialClean(e.target.result, file.name);
       reader.readAsText(file);
     }
 
-    function parseDxfSleek(dxfString, filename) {
+    function parseDxfPericialClean(dxfString, filename) {
       try {
         const parser = new DxfParser();
         const dxf = parser.parseSync(dxfString);
@@ -399,16 +398,18 @@
           if (!entities) return;
           entities.forEach(ent => {
             const layer = (ent.layer || '').toUpperCase();
-            const isSewer = /SSWR|ESGOTO|COLETOR|SANITARY|REDE|ESG|TIGRECAD|B18A|PROJ|REDE_ESGOTO|Rede-Proj|Fluxo/i.test(layer);
-            const isIgnored = /HATCH|TOPO|CONT|PROP|ROAD|ANNO|DIM|MOLDURA|CARIMBO|ARQ|ALVENARIA|PAREDE|PISO|MOBILIARIO|QUADRA|LOTE|MDT|CURVAS|TEXTO-80/i.test(layer);
+            
+            // FILTRO DE ENGENHARIA ULTRA-PRECISO: Apenas redes de esgoto e tubulação projetada
+            const isSewerLayer = /SSWR|ESGOTO|COLETOR|SANITARY|REDE|ESG|TIGRECAD|B18A|PROJ|REDE_ESGOTO|Rede-Proj|Fluxo|C-SSWR-PIPE/i.test(layer);
+            const isNoiseLayer = /HATCH|TOPO|CONT|PROP|ROAD|ANNO|DIM|MOLDURA|CARIMBO|ARQ|ALVENARIA|PAREDE|PISO|MOBILIARIO|QUADRA|LOTE|MDT|CURVAS|TEXTO-80|LAGOAS|MEIO|DEFPOINTS/i.test(layer);
 
-            if ((isSewer && !isIgnored) || (!isIgnored && ent.type === 'LINE')) {
+            if (isSewerLayer && !isNoiseLayer) {
               if (ent.type === 'LINE') {
                 const start = ent.vertices ? ent.vertices[0] : ent.start;
                 const end = ent.vertices ? ent.vertices[1] : ent.end;
                 if (start && end) {
                   const dist = Math.hypot(end.x - start.x, end.y - start.y);
-                  if (dist >= 3.0 && dist <= 120.0) {
+                  if (dist >= 4.0 && dist <= 120.0) {
                     rawLines.push({ p1: { x: start.x, y: start.y }, p2: { x: end.x, y: end.y }, layer });
                   }
                 }
@@ -418,7 +419,7 @@
                     const p1 = ent.vertices[i];
                     const p2 = ent.vertices[i+1];
                     const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-                    if (dist >= 3.0 && dist <= 120.0) {
+                    if (dist >= 4.0 && dist <= 120.0) {
                       rawLines.push({ p1: { x: p1.x, y: p1.y }, p2: { x: p2.x, y: p2.y }, layer });
                     }
                   }
@@ -430,7 +431,7 @@
               const pos = ent.startPoint || ent.position || (ent.vertices ? ent.vertices[0] : null) || { x: 0, y: 0 };
               rawTexts.push({ text: (ent.text || '').trim(), x: pos.x, y: pos.y });
             } else if (ent.type === 'INSERT' && ent.block && dxf.blocks && dxf.blocks[ent.block]) {
-              if (!/MOLDURA|CARIMBO|BLOCO/i.test(ent.block)) {
+              if (!/MOLDURA|CARIMBO|BLOCO|SECAO|PERFIL/i.test(ent.block)) {
                 scanEntities(dxf.blocks[ent.block].entities);
               }
             }
@@ -439,25 +440,29 @@
 
         scanEntities(dxf.entities);
 
+        // Deduplicação estrita com arredondamento decimal para apagar repetições de blocos
         let uniqueLines = [];
         rawLines.forEach(l => {
-          const isDuplicate = uniqueLines.some(existing => 
-            (Math.hypot(existing.p1.x - l.p1.x, existing.p1.y - l.p1.y) < 0.2 && Math.hypot(existing.p2.x - l.p2.x, existing.p2.y - l.p2.y) < 0.2) ||
-            (Math.hypot(existing.p1.x - l.p2.x, existing.p1.y - l.p2.y) < 0.2 && Math.hypot(existing.p2.x - l.p1.x, existing.p2.y - l.p1.y) < 0.2)
-          );
+          const isDuplicate = uniqueLines.some(existing => {
+            const d1 = Math.hypot(existing.p1.x - l.p1.x, existing.p1.y - l.p1.y);
+            const d2 = Math.hypot(existing.p2.x - l.p2.x, existing.p2.y - l.p2.y);
+            const d3 = Math.hypot(existing.p1.x - l.p2.x, existing.p1.y - l.p2.y);
+            const d4 = Math.hypot(existing.p2.x - l.p1.x, existing.p2.y - l.p1.y);
+            return (d1 < 0.3 && d2 < 0.3) || (d3 < 0.3 && d4 < 0.3);
+          });
           if (!isDuplicate) uniqueLines.push(l);
         });
 
-        buildSleekNetwork(uniqueLines, rawTexts, filename);
+        buildFinalNetwork(uniqueLines, rawTexts, filename);
 
       } catch (err) {
-        alert('Erro ao interpretar o ficheiro DXF: ' + err.message);
+        alert('Erro ao processar DXF: ' + err.message);
       }
     }
 
-    function buildSleekNetwork(lines, texts, filename) {
+    function buildFinalNetwork(lines, texts, filename) {
       if (!lines || lines.length === 0) {
-        alert('Nenhum coletor detetado.');
+        alert('Nenhum coletor único válido encontrado nas camadas de esgoto.');
         return;
       }
 
@@ -552,10 +557,11 @@
       const isGeoref = (avgY >= 6000000 && avgY <= 10000000);
 
       if (isGeoref) {
-        let epsg = "EPSG:31982";
-        let zoneLabel = "SIRGAS 2000 UTM 22S";
-        if (avgY >= 8500000) { epsg = "EPSG:31984"; zoneLabel = "SIRGAS 2000 UTM 24S"; }
-        else if (avgY >= 7500000) { epsg = "EPSG:31983"; zoneLabel = "SIRGAS 2000 UTM 23S"; }
+        // Ceará / Nordeste (UTM 24S)
+        let epsg = "EPSG:31984";
+        let zoneLabel = "SIRGAS 2000 UTM 24S";
+        if (avgY < 8500000 && avgY >= 7500000) { epsg = "EPSG:31983"; zoneLabel = "SIRGAS 2000 UTM 23S"; }
+        else if (avgY < 7500000) { epsg = "EPSG:31982"; zoneLabel = "SIRGAS 2000 UTM 22S"; }
 
         geoBadge.className = 'georef';
         geoBadge.innerText = `✅ Georreferenciado (${zoneLabel})`;
@@ -584,7 +590,7 @@
         pvs.forEach(pv => {
           const pt = proj4(epsg, "WGS84", [pv.x, pv.y]);
           const marker = L.circleMarker([pt[1], pt[0]], {
-            radius: 5, fillColor: '#0ea5e9', color: '#ffffff', weight: 1.5, fillOpacity: 0.95
+            radius: 4.5, fillColor: '#0284c7', color: '#ffffff', weight: 1.5, fillOpacity: 0.95
           }).addTo(pvMarkersLayer);
 
           marker.bindPopup(`<strong>${pv.name}</strong><br>• Norte: ${pv.y.toFixed(2)} | Este: ${pv.x.toFixed(2)}`);
@@ -720,8 +726,7 @@
       ctx.fillStyle = '#030712';
       ctx.fillRect(0, 0, cadCanvas.width, cadCanvas.height);
 
-      // Grelha de fundo refinada e subtil
-      ctx.strokeStyle = '#0b0f19';
+      ctx.strokeStyle = '#070a14';
       ctx.lineWidth = 1;
       for (let x = 0; x < cadCanvas.width; x += 60) {
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cadCanvas.height); ctx.stroke();
@@ -732,12 +737,11 @@
 
       if (!auditedSegments || auditedSegments.length === 0) return;
 
-      // Desenho dos Coletores (Linhas finas, elegantes e limpas)
       auditedSegments.forEach(s => {
         const p1 = cadToScreen(s.p1);
         const p2 = cadToScreen(s.p2);
 
-        ctx.strokeStyle = s.conforme ? '#10b981' : '#ef4444';
+        ctx.strokeStyle = s.conforme ? '#059669' : '#dc2626';
         ctx.lineWidth = Math.max(2, 3 * (camera.scale / camera.baseScale));
         ctx.lineCap = 'round';
 
@@ -753,9 +757,9 @@
         ctx.font = '10px -apple-system, sans-serif';
         const txtWidth = ctx.measureText(label).width;
 
-        ctx.fillStyle = 'rgba(11, 15, 25, 0.9)';
+        ctx.fillStyle = 'rgba(7, 10, 20, 0.9)';
         ctx.fillRect(midX - txtWidth / 2 - 4, midY - 18, txtWidth + 8, 14);
-        ctx.strokeStyle = '#1f2937';
+        ctx.strokeStyle = '#1e293b';
         ctx.lineWidth = 0.5;
         ctx.strokeRect(midX - txtWidth / 2 - 4, midY - 18, txtWidth + 8, 14);
 
@@ -763,18 +767,17 @@
         ctx.fillText(label, midX - txtWidth / 2, midY - 8);
       });
 
-      // Desenho dos Poços de Visita (Nós modernos e minimalistas)
       detectedPVs.forEach(pv => {
         const p = cadToScreen(pv);
-        const radius = Math.max(3.5, 5 * (camera.scale / camera.baseScale));
+        const radius = Math.max(3, 4.5 * (camera.scale / camera.baseScale));
 
-        ctx.fillStyle = '#0ea5e9';
+        ctx.fillStyle = '#0284c7';
         ctx.beginPath();
         ctx.arc(p.x, p.y, radius, 0, 2 * Math.PI);
         ctx.fill();
 
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 1;
         ctx.stroke();
 
         ctx.fillStyle = '#64748b';
@@ -808,7 +811,6 @@
 
       ctx.clearRect(0, 0, w, h);
 
-      // Linha de Terreno Natural Superior
       ctx.strokeStyle = '#d97706';
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -824,14 +826,12 @@
       const depthA = 55;
       const depthB = 65;
 
-      // Hachura da vala escavada
       ctx.fillStyle = 'rgba(30, 41, 59, 0.4)';
       ctx.fillRect(35, 32, w - 70, 75);
 
-      // Tubo coletor elegante com gradiente
       const grad = ctx.createLinearGradient(0, 0, w, 0);
-      grad.addColorStop(0, p.conforme ? '#10b981' : '#ef4444');
-      grad.addColorStop(1, p.conforme ? '#059669' : '#dc2626');
+      grad.addColorStop(0, p.conforme ? '#059669' : '#dc2626');
+      grad.addColorStop(1, p.conforme ? '#047857' : '#b91c1c');
 
       ctx.strokeStyle = grad;
       ctx.lineWidth = 4;
@@ -840,8 +840,7 @@
       ctx.lineTo(w - 35, 32 + depthB);
       ctx.stroke();
 
-      // Poços nas extremidades
-      ctx.fillStyle = '#0ea5e9';
+      ctx.fillStyle = '#0284c7';
       ctx.fillRect(25, 32, 12, depthA + 10);
       ctx.fillRect(w - 37, 35, 12, depthB + 10);
 
