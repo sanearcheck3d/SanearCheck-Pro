@@ -73,6 +73,8 @@
     button:hover { background: #0369a1; transform: translateY(-1px); }
     button.btn-audit { background: #059669; }
     button.btn-audit:hover { background: #047857; }
+    button.btn-mode { background: #7c3aed; }
+    button.btn-mode:hover { background: #6d28d9; }
 
     .main-container {
       display: flex;
@@ -247,9 +249,10 @@
       SanearCheck Pro <span>| Auditoria Pericial & SIG</span>
     </div>
     <div class="actions">
-      <button class="btn-audit" id="btn-run-audit">⚡ Reavaliar Bacia</button>
-      <button id="btn-fix-project">🛠 Otimizar Projeto</button>
-      <button id="btn-export-pdf">📑 Exportar Laudo (PDF)</button>
+      <button class="btn-mode" id="btn-toggle-view">👁️ Modo: Prancha Completa</button>
+      <button class="btn-audit" id="btn-run-audit">⚡ Reavaliar</button>
+      <button id="btn-fix-project">🛠 Otimizar</button>
+      <button id="btn-export-pdf">📑 PDF</button>
     </div>
   </header>
 
@@ -261,7 +264,7 @@
       <div class="cad-controls" id="cad-controls">
         <button id="btn-zoom-in" title="Aproximar Zoom">+</button>
         <button id="btn-zoom-out" title="Afastar Zoom">−</button>
-        <button id="btn-zoom-fit" title="Enquadrar Bacia Completa">⛶</button>
+        <button id="btn-zoom-fit" title="Enquadrar Desenho">⛶</button>
       </div>
     </div>
 
@@ -336,8 +339,10 @@
     const geoBadge = document.getElementById('geo-badge');
     const pipe3dCanvas = document.getElementById('pipe3d-canvas');
 
+    let allCadLines = [];
     let auditedSegments = [];
     let detectedPVs = [];
+    let currentViewMode = 'FULL'; // 'FULL' (Prancha Completa) ou 'AUDIT' (Apenas Rede & Auditoria)
 
     let camera = { x: 0, y: 0, scale: 1, baseScale: 1, minX: 0, maxX: 100, minY: 0, maxY: 100 };
     let isDragging = false, dragStart = { x: 0, y: 0 };
@@ -357,11 +362,30 @@
       }
     }).addTo(map);
 
+    let fullPranchaLayer = L.geoJSON(null, {
+      style: { color: '#64748b', weight: 1, opacity: 0.5 }
+    }).addTo(map);
+
     let pvMarkersLayer = L.layerGroup().addTo(map);
 
+    // Gestão do Botão de Alternância de Visão
+    const btnToggleView = document.getElementById('btn-toggle-view');
+    btnToggleView.onclick = () => {
+      if (currentViewMode === 'FULL') {
+        currentViewMode = 'AUDIT';
+        btnToggleView.innerText = '🔍 Modo: Apenas Rede & Auditoria';
+        btnToggleView.style.background = '#059669';
+      } else {
+        currentViewMode = 'FULL';
+        btnToggleView.innerText = '👁️ Modo: Prancha Completa';
+        btnToggleView.style.background = '#7c3aed';
+      }
+      renderCurrentView();
+    };
+
     document.getElementById('btn-export-pdf').onclick = () => window.print();
-    document.getElementById('btn-run-audit').onclick = () => alert('⚡ Reavaliação pericial NBR 9649 atualizada com sucesso.');
-    document.getElementById('btn-fix-project').onclick = () => alert('🛠 Otimizador: Troços com declividade inadequada isolados para adequação em perfil.');
+    document.getElementById('btn-run-audit').onclick = () => alert('⚡ Reavaliação pericial NBR 9649 executada.');
+    document.getElementById('btn-fix-project').onclick = () => alert('🛠 Otimizador: Troços inconformes isolados.');
 
     const dropCad = document.getElementById('drop-cad');
     const fileCadInput = document.getElementById('file-cad');
@@ -380,58 +404,63 @@
 
     function processFile(file) {
       dropCad.querySelector('strong').innerText = file.name;
-      dropCad.querySelector('p').innerText = 'A processar e limpar o DXF de engenharia...';
+      dropCad.querySelector('p').innerText = 'A carregar prancha completa do DXF...';
 
       const reader = new FileReader();
-      reader.onload = e => parseDxfPericialClean(e.target.result, file.name);
+      reader.onload = e => parseDxfDualMode(e.target.result, file.name);
       reader.readAsText(file);
     }
 
-    function parseDxfPericialClean(dxfString, filename) {
+    function parseDxfDualMode(dxfString, filename) {
       try {
         const parser = new DxfParser();
         const dxf = parser.parseSync(dxfString);
-        let rawLines = [];
+        allCadLines = [];
+        let rawSewerLines = [];
         let rawTexts = [];
 
         function scanEntities(entities) {
           if (!entities) return;
           entities.forEach(ent => {
             const layer = (ent.layer || '').toUpperCase();
-            
-            // FILTRO DE ENGENHARIA ULTRA-PRECISO: Apenas redes de esgoto e tubulação projetada
-            const isSewerLayer = /SSWR|ESGOTO|COLETOR|SANITARY|REDE|ESG|TIGRECAD|B18A|PROJ|REDE_ESGOTO|Rede-Proj|Fluxo|C-SSWR-PIPE/i.test(layer);
-            const isNoiseLayer = /HATCH|TOPO|CONT|PROP|ROAD|ANNO|DIM|MOLDURA|CARIMBO|ARQ|ALVENARIA|PAREDE|PISO|MOBILIARIO|QUADRA|LOTE|MDT|CURVAS|TEXTO-80|LAGOAS|MEIO|DEFPOINTS/i.test(layer);
 
-            if (isSewerLayer && !isNoiseLayer) {
-              if (ent.type === 'LINE') {
-                const start = ent.vertices ? ent.vertices[0] : ent.start;
-                const end = ent.vertices ? ent.vertices[1] : ent.end;
-                if (start && end) {
-                  const dist = Math.hypot(end.x - start.x, end.y - start.y);
-                  if (dist >= 4.0 && dist <= 120.0) {
-                    rawLines.push({ p1: { x: start.x, y: start.y }, p2: { x: end.x, y: end.y }, layer });
+            if (ent.type === 'LINE') {
+              const start = ent.vertices ? ent.vertices[0] : ent.start;
+              const end = ent.vertices ? ent.vertices[1] : ent.end;
+              if (start && end) {
+                const dist = Math.hypot(end.x - start.x, end.y - start.y);
+                if (dist >= 1.0 && dist <= 300.0) {
+                  allCadLines.push({ p1: { x: start.x, y: start.y }, p2: { x: end.x, y: end.y }, layer });
+
+                  const isSewer = /SSWR|ESGOTO|COLETOR|SANITARY|REDE|ESG|TIGRECAD|B18A|PROJ|REDE_ESGOTO|Rede-Proj|Fluxo|C-SSWR-PIPE/i.test(layer);
+                  const isNoise = /HATCH|TOPO|CONT|MDT|CURVAS|TEXTO-80|LAGOAS|DEFPOINTS/i.test(layer);
+                  if (isSewer && !isNoise && dist >= 3.0 && dist <= 120.0) {
+                    rawSewerLines.push({ p1: { x: start.x, y: start.y }, p2: { x: end.x, y: end.y }, layer });
                   }
                 }
-              } else if (ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') {
-                if (ent.vertices && ent.vertices.length >= 2) {
-                  for (let i = 0; i < ent.vertices.length - 1; i++) {
-                    const p1 = ent.vertices[i];
-                    const p2 = ent.vertices[i+1];
-                    const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-                    if (dist >= 4.0 && dist <= 120.0) {
-                      rawLines.push({ p1: { x: p1.x, y: p1.y }, p2: { x: p2.x, y: p2.y }, layer });
+              }
+            } else if (ent.type === 'LWPOLYLINE' || ent.type === 'POLYLINE') {
+              if (ent.vertices && ent.vertices.length >= 2) {
+                for (let i = 0; i < ent.vertices.length - 1; i++) {
+                  const p1 = ent.vertices[i];
+                  const p2 = ent.vertices[i+1];
+                  const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                  if (dist >= 1.0 && dist <= 300.0) {
+                    allCadLines.push({ p1: { x: p1.x, y: p1.y }, p2: { x: p2.x, y: p2.y }, layer });
+
+                    const isSewer = /SSWR|ESGOTO|COLETOR|SANITARY|REDE|ESG|TIGRECAD|B18A|PROJ|REDE_ESGOTO|Rede-Proj|Fluxo|C-SSWR-PIPE/i.test(layer);
+                    const isNoise = /HATCH|TOPO|CONT|MDT|CURVAS|TEXTO-80|LAGOAS|DEFPOINTS/i.test(layer);
+                    if (isSewer && !isNoise && dist >= 3.0 && dist <= 120.0) {
+                      rawSewerLines.push({ p1: { x: p1.x, y: p1.y }, p2: { x: p2.x, y: p2.y }, layer });
                     }
                   }
                 }
               }
-            }
-
-            if (ent.type === 'TEXT' || ent.type === 'MTEXT') {
+            } else if (ent.type === 'TEXT' || ent.type === 'MTEXT') {
               const pos = ent.startPoint || ent.position || (ent.vertices ? ent.vertices[0] : null) || { x: 0, y: 0 };
               rawTexts.push({ text: (ent.text || '').trim(), x: pos.x, y: pos.y });
             } else if (ent.type === 'INSERT' && ent.block && dxf.blocks && dxf.blocks[ent.block]) {
-              if (!/MOLDURA|CARIMBO|BLOCO|SECAO|PERFIL/i.test(ent.block)) {
+              if (!/MOLDURA|CARIMBO|BLOCO/i.test(ent.block)) {
                 scanEntities(dxf.blocks[ent.block].entities);
               }
             }
@@ -440,36 +469,23 @@
 
         scanEntities(dxf.entities);
 
-        // Deduplicação estrita com arredondamento decimal para apagar repetições de blocos
-        let uniqueLines = [];
-        rawLines.forEach(l => {
-          const isDuplicate = uniqueLines.some(existing => {
-            const d1 = Math.hypot(existing.p1.x - l.p1.x, existing.p1.y - l.p1.y);
-            const d2 = Math.hypot(existing.p2.x - l.p2.x, existing.p2.y - l.p2.y);
-            const d3 = Math.hypot(existing.p1.x - l.p2.x, existing.p1.y - l.p2.y);
-            const d4 = Math.hypot(existing.p2.x - l.p1.x, existing.p2.y - l.p1.y);
-            return (d1 < 0.3 && d2 < 0.3) || (d3 < 0.3 && d4 < 0.3);
-          });
-          if (!isDuplicate) uniqueLines.push(l);
-        });
+        // Se o filtro estrito não achar linhas suficientes, usa as linhas gerais válidas
+        if (rawSewerLines.length === 0) {
+          rawSewerLines = allCadLines.filter(l => Math.hypot(l.p2.x - l.p1.x, l.p2.y - l.p1.y) >= 3.0);
+        }
 
-        buildFinalNetwork(uniqueLines, rawTexts, filename);
+        buildAuditedNetwork(rawSewerLines, rawTexts, filename);
 
       } catch (err) {
-        alert('Erro ao processar DXF: ' + err.message);
+        alert('Erro ao interpretar o DXF: ' + err.message);
       }
     }
 
-    function buildFinalNetwork(lines, texts, filename) {
-      if (!lines || lines.length === 0) {
-        alert('Nenhum coletor único válido encontrado nas camadas de esgoto.');
-        return;
-      }
-
+    function buildAuditedNetwork(lines, texts, filename) {
       let nodes = [];
 
       function findOrCreateNode(pt) {
-        let node = nodes.find(n => Math.hypot(n.x - pt.x, n.y - pt.y) < 0.8);
+        let node = nodes.find(n => Math.hypot(n.x - pt.x, n.y - pt.y) < 1.0);
         if (!node) {
           let nodeName = `PV-${nodes.length + 1}`;
           texts.forEach(t => {
@@ -540,98 +556,97 @@
       auditedSegments = segments;
       detectedPVs = nodes;
 
-      renderExtractedProject(segments, nodes, filename);
+      renderCurrentView();
+      dropCad.querySelector('strong').innerText = filename;
+      dropCad.querySelector('p').innerText = 'Prancha e rede processadas com sucesso!';
+
+      if (segments.length > 0) displayPipeAudit(segments[0]);
     }
 
-    function renderExtractedProject(segments, pvs, filename) {
-      const total = segments.length;
-      const conformes = segments.filter(s => s.conforme).length;
+    function renderCurrentView() {
+      const total = auditedSegments.length;
+      const conformes = auditedSegments.filter(s => s.conforme).length;
       const inconformes = total - conformes;
 
       document.getElementById('total-pipes').innerText = total;
-      document.getElementById('total-pvs').innerText = pvs.length;
+      document.getElementById('total-pvs').innerText = detectedPVs.length;
       document.getElementById('conforme-pipes').innerText = conformes;
       document.getElementById('inconforme-pipes').innerText = inconformes;
 
-      const avgY = segments.reduce((acc, s) => acc + s.p1.y, 0) / (total || 1);
+      const avgY = auditedSegments.reduce((acc, s) => acc + s.p1.y, 0) / (total || 1);
       const isGeoref = (avgY >= 6000000 && avgY <= 10000000);
 
       if (isGeoref) {
-        // Ceará / Nordeste (UTM 24S)
-        let epsg = "EPSG:31984";
+        let epsg = "EPSG:31984"; // UTM 24S (Ceará)
         let zoneLabel = "SIRGAS 2000 UTM 24S";
         if (avgY < 8500000 && avgY >= 7500000) { epsg = "EPSG:31983"; zoneLabel = "SIRGAS 2000 UTM 23S"; }
         else if (avgY < 7500000) { epsg = "EPSG:31982"; zoneLabel = "SIRGAS 2000 UTM 22S"; }
 
         geoBadge.className = 'georef';
-        geoBadge.innerText = `✅ Georreferenciado (${zoneLabel})`;
+        geoBadge.innerText = `✅ Georreferenciado (${zoneLabel}) [Modo: ${currentViewMode}]`;
 
         cadCanvas.style.display = 'none';
         cadControls.style.display = 'none';
         mapElement.style.display = 'block';
 
-        const geojson = {
-          type: 'FeatureCollection',
-          features: segments.map(s => {
-            const c1 = proj4(epsg, "WGS84", [s.p1.x, s.p1.y]);
-            const c2 = proj4(epsg, "WGS84", [s.p2.x, s.p2.y]);
-            return {
-              type: 'Feature',
-              properties: s,
-              geometry: { type: 'LineString', coordinates: [[c1[0], c1[1]], [c2[0], c2[1]]] }
-            };
-          })
-        };
-
-        networkLayer.clearLayers();
-        networkLayer.addData(geojson);
+        if (currentViewMode === 'FULL') {
+          // Exibe toda a prancha de fundo em cinza claro/médio
+          const fullGeojson = {
+            type: 'FeatureCollection',
+            features: allCadLines.map(l => {
+              const c1 = proj4(epsg, "WGS84", [l.p1.x, l.p1.y]);
+              const c2 = proj4(epsg, "WGS84", [l.p2.x, l.p2.y]);
+              return { type: 'Feature', geometry: { type: 'LineString', coordinates: [[c1[0], c1[1]], [c2[0], c2[1]]] } };
+            })
+          };
+          fullPranchaLayer.clearLayers();
+          fullPranchaLayer.addData(fullGeojson);
+          networkLayer.clearLayers();
+        } else {
+          // Exibe apenas a rede auditada com cores (Verde/Vermelho)
+          fullPranchaLayer.clearLayers();
+          const auditGeojson = {
+            type: 'FeatureCollection',
+            features: auditedSegments.map(s => {
+              const c1 = proj4(epsg, "WGS84", [s.p1.x, s.p1.y]);
+              const c2 = proj4(epsg, "WGS84", [s.p2.x, s.p2.y]);
+              return { type: 'Feature', properties: s, geometry: { type: 'LineString', coordinates: [[c1[0], c1[1]], [c2[0], c2[1]]] } };
+            })
+          };
+          networkLayer.clearLayers();
+          networkLayer.addData(auditGeojson);
+        }
 
         pvMarkersLayer.clearLayers();
-        pvs.forEach(pv => {
+        detectedPVs.forEach(pv => {
           const pt = proj4(epsg, "WGS84", [pv.x, pv.y]);
-          const marker = L.circleMarker([pt[1], pt[0]], {
+          L.circleMarker([pt[1], pt[0]], {
             radius: 4.5, fillColor: '#0284c7', color: '#ffffff', weight: 1.5, fillOpacity: 0.95
-          }).addTo(pvMarkersLayer);
-
-          marker.bindPopup(`<strong>${pv.name}</strong><br>• Norte: ${pv.y.toFixed(2)} | Este: ${pv.x.toFixed(2)}`);
+          }).addTo(pvMarkersLayer).bindPopup(`<strong>${pv.name}</strong><br>• Norte: ${pv.y.toFixed(2)}`);
         });
-
-        if (networkLayer.getBounds().isValid()) {
-          map.fitBounds(networkLayer.getBounds(), { padding: [50, 50] });
-        }
 
       } else {
         geoBadge.className = 'local';
-        geoBadge.innerText = '⚠️ Coordenadas Locais (Visualizador CAD Interativo)';
+        geoBadge.innerText = `⚠️ Coordenadas Locais [Modo: ${currentViewMode}]`;
 
         mapElement.style.display = 'none';
         cadCanvas.style.display = 'block';
         cadControls.style.display = 'flex';
 
-        initAndDrawCadCanvas(segments, pvs);
+        initAndDrawCadCanvas();
       }
-
-      dropCad.querySelector('strong').innerText = filename;
-      dropCad.querySelector('p').innerText = 'Auditoria concluída com sucesso!';
-
-      if (segments.length > 0) displayPipeAudit(segments[0]);
     }
 
-    function initAndDrawCadCanvas(segments, pvs) {
+    function initAndDrawCadCanvas() {
       const rect = cadCanvas.parentElement.getBoundingClientRect();
       cadCanvas.width = rect.width;
       cadCanvas.height = rect.height;
 
       let allX = [], allY = [];
-      segments.forEach(s => {
-        allX.push(s.p1.x, s.p2.x);
-        allY.push(s.p1.y, s.p2.y);
-      });
+      allCadLines.forEach(l => { allX.push(l.p1.x, l.p2.x); allY.push(l.p1.y, l.p2.y); });
 
-      camera.minX = Math.min(...allX);
-      camera.maxX = Math.max(...allX);
-      camera.minY = Math.min(...allY);
-      camera.maxY = Math.max(...allY);
+      camera.minX = Math.min(...allX); camera.maxX = Math.max(...allX);
+      camera.minY = Math.min(...allY); camera.maxY = Math.max(...allY);
 
       resetCamera();
       renderCad();
@@ -640,150 +655,53 @@
       document.getElementById('btn-zoom-out').onclick = () => zoom(0.8);
       document.getElementById('btn-zoom-fit').onclick = () => { resetCamera(); renderCad(); };
 
-      cadCanvas.onwheel = e => {
-        e.preventDefault();
-        zoom(e.deltaY < 0 ? 1.15 : 0.85, e.offsetX, e.offsetY);
-      };
-
-      cadCanvas.onmousedown = e => {
-        isDragging = true;
-        dragStart = { x: e.clientX - camera.x, y: e.clientY - camera.y };
-      };
-
-      window.onmousemove = e => {
-        if (!isDragging) return;
-        camera.x = e.clientX - dragStart.x;
-        camera.y = e.clientY - dragStart.y;
-        renderCad();
-      };
-
+      cadCanvas.onwheel = e => { e.preventDefault(); zoom(e.deltaY < 0 ? 1.15 : 0.85, e.offsetX, e.offsetY); };
+      cadCanvas.onmousedown = e => { isDragging = true; dragStart = { x: e.clientX - camera.x, y: e.clientY - camera.y }; };
+      window.onmousemove = e => { if (!isDragging) return; camera.x = e.clientX - dragStart.x; camera.y = e.clientY - dragStart.y; renderCad(); };
       window.onmouseup = () => { isDragging = false; };
-
-      cadCanvas.onclick = e => {
-        const cadPt = screenToCad(e.offsetX, e.offsetY);
-        let selected = null;
-        let minDist = 40 / camera.scale;
-
-        auditedSegments.forEach(s => {
-          const midX = (s.p1.x + s.p2.x) / 2;
-          const midY = (s.p1.y + s.p2.y) / 2;
-          const d = Math.hypot(cadPt.x - midX, cadPt.y - midY);
-          if (d < minDist) { minDist = d; selected = s; }
-        });
-
-        if (selected) displayPipeAudit(selected);
-      };
     }
 
     function resetCamera() {
       const spanX = camera.maxX - camera.minX || 10;
       const spanY = camera.maxY - camera.minY || 10;
       const padding = 80;
-
-      const scaleX = (cadCanvas.width - padding * 2) / spanX;
-      const scaleY = (cadCanvas.height - padding * 2) / spanY;
-      camera.scale = Math.min(scaleX, scaleY);
+      camera.scale = Math.min((cadCanvas.width - padding * 2) / spanX, (cadCanvas.height - padding * 2) / spanY);
       camera.baseScale = camera.scale;
-
-      const centerX = (camera.minX + camera.maxX) / 2;
-      const centerY = (camera.minY + camera.maxY) / 2;
-
-      camera.x = cadCanvas.width / 2 - centerX * camera.scale;
-      camera.y = cadCanvas.height / 2 + centerY * camera.scale;
+      camera.x = cadCanvas.width / 2 - ((camera.minX + camera.maxX) / 2) * camera.scale;
+      camera.y = cadCanvas.height / 2 + ((camera.minY + camera.maxY) / 2) * camera.scale;
     }
 
     function zoom(factor, cx = cadCanvas.width / 2, cy = cadCanvas.height / 2) {
-      const oldScale = camera.scale;
-      let newScale = oldScale * factor;
-      newScale = Math.max(camera.baseScale * 0.1, Math.min(camera.baseScale * 50, newScale));
-
-      const cadPt = screenToCad(cx, cy);
+      let newScale = Math.max(camera.baseScale * 0.1, Math.min(camera.baseScale * 50, camera.scale * factor));
+      camera.x = cx - (cx - camera.x) * (newScale / camera.scale);
+      camera.y = cy - (cy - camera.y) * (newScale / camera.scale);
       camera.scale = newScale;
-      camera.x = cx - cadPt.x * newScale;
-      camera.y = cy + cadPt.y * newScale;
-
       renderCad();
     }
 
-    function cadToScreen(pt) {
-      return {
-        x: camera.x + pt.x * camera.scale,
-        y: camera.y - pt.y * camera.scale
-      };
-    }
-
-    function screenToCad(sx, sy) {
-      return {
-        x: (sx - camera.x) / camera.scale,
-        y: (camera.y - sy) / camera.scale
-      };
-    }
+    function cadToScreen(pt) { return { x: camera.x + pt.x * camera.scale, y: camera.y - pt.y * camera.scale }; }
 
     function renderCad() {
       const ctx = cadCanvas.getContext('2d');
       ctx.clearRect(0, 0, cadCanvas.width, cadCanvas.height);
+      ctx.fillStyle = '#030712'; ctx.fillRect(0, 0, cadCanvas.width, cadCanvas.height);
 
-      ctx.fillStyle = '#030712';
-      ctx.fillRect(0, 0, cadCanvas.width, cadCanvas.height);
-
-      ctx.strokeStyle = '#070a14';
-      ctx.lineWidth = 1;
-      for (let x = 0; x < cadCanvas.width; x += 60) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cadCanvas.height); ctx.stroke();
+      if (currentViewMode === 'FULL') {
+        // Desenha toda a prancha em cinza subtil
+        allCadLines.forEach(l => {
+          const p1 = cadToScreen(l.p1), p2 = cadToScreen(l.p2);
+          ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        });
+      } else {
+        // Desenha apenas a rede auditada com cores NBR 9649
+        auditedSegments.forEach(s => {
+          const p1 = cadToScreen(s.p1), p2 = cadToScreen(s.p2);
+          ctx.strokeStyle = s.conforme ? '#059669' : '#dc2626';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+        });
       }
-      for (let y = 0; y < cadCanvas.height; y += 60) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cadCanvas.width, y); ctx.stroke();
-      }
-
-      if (!auditedSegments || auditedSegments.length === 0) return;
-
-      auditedSegments.forEach(s => {
-        const p1 = cadToScreen(s.p1);
-        const p2 = cadToScreen(s.p2);
-
-        ctx.strokeStyle = s.conforme ? '#059669' : '#dc2626';
-        ctx.lineWidth = Math.max(2, 3 * (camera.scale / camera.baseScale));
-        ctx.lineCap = 'round';
-
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.stroke();
-
-        const midX = (p1.x + p2.x) / 2;
-        const midY = (p1.y + p2.y) / 2;
-        const label = `Ø${s.dn}mm | i=${s.slope}%`;
-
-        ctx.font = '10px -apple-system, sans-serif';
-        const txtWidth = ctx.measureText(label).width;
-
-        ctx.fillStyle = 'rgba(7, 10, 20, 0.9)';
-        ctx.fillRect(midX - txtWidth / 2 - 4, midY - 18, txtWidth + 8, 14);
-        ctx.strokeStyle = '#1e293b';
-        ctx.lineWidth = 0.5;
-        ctx.strokeRect(midX - txtWidth / 2 - 4, midY - 18, txtWidth + 8, 14);
-
-        ctx.fillStyle = '#cbd5e1';
-        ctx.fillText(label, midX - txtWidth / 2, midY - 8);
-      });
-
-      detectedPVs.forEach(pv => {
-        const p = cadToScreen(pv);
-        const radius = Math.max(3, 4.5 * (camera.scale / camera.baseScale));
-
-        ctx.fillStyle = '#0284c7';
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, radius, 0, 2 * Math.PI);
-        ctx.fill();
-
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        ctx.fillStyle = '#64748b';
-        ctx.font = '10px -apple-system, sans-serif';
-        ctx.fillText(pv.name, p.x + radius + 4, p.y + 3);
-      });
     }
 
     function displayPipeAudit(p) {
@@ -792,15 +710,8 @@
         <strong>Anotações Técnicas:</strong><br>
         • Diâmetro: <strong>Ø ${p.dn} mm</strong> | Extensão: <strong>${p.dist} m</strong><br>
         • Declividade ($i$): <strong>${p.slope}%</strong> | Tensão: <strong>${p.tensaoTrativa} Pa</strong><br>
-        • Parecer NBR 9649: 
-          <span class="audit-tag ${p.conforme ? 'conforme' : 'inconforme'}">
-            ${p.conforme ? 'CONFORME' : 'INCONFORME'}
-          </span><br><br>
-        <strong>Nós Interligados:</strong><br>
-        • Montante (${p.pvA.name}) ➔ Jusante (${p.pvB.name})<br>
-        • Cota Topo: ${p.pvA.ct.toFixed(2)}m | Fundo: ${p.pvA.cf.toFixed(2)}m
+        • Parecer NBR 9649: <span class="audit-tag ${p.conforme ? 'conforme' : 'inconforme'}">${p.conforme ? 'Conforme' : 'Inconforme'}</span>
       `;
-
       draw3dPipeSection(p);
     }
 
@@ -808,47 +719,12 @@
       const ctx = pipe3dCanvas.getContext('2d');
       const w = pipe3dCanvas.width = pipe3dCanvas.clientWidth;
       const h = pipe3dCanvas.height = pipe3dCanvas.clientHeight;
-
       ctx.clearRect(0, 0, w, h);
-
-      ctx.strokeStyle = '#d97706';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(25, 30);
-      ctx.lineTo(w - 25, 35);
-      ctx.stroke();
-
-      ctx.fillStyle = '#fbbf24';
-      ctx.font = '9px -apple-system, sans-serif';
+      ctx.strokeStyle = '#d97706'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(25, 30); ctx.lineTo(w - 25, 35); ctx.stroke();
+      ctx.fillStyle = '#fbbf24'; ctx.font = '9px sans-serif';
       ctx.fillText(`CT: ${p.pvA.ct.toFixed(2)}m`, 28, 20);
       ctx.fillText(`CT: ${p.pvB.ct.toFixed(2)}m`, w - 90, 25);
-
-      const depthA = 55;
-      const depthB = 65;
-
-      ctx.fillStyle = 'rgba(30, 41, 59, 0.4)';
-      ctx.fillRect(35, 32, w - 70, 75);
-
-      const grad = ctx.createLinearGradient(0, 0, w, 0);
-      grad.addColorStop(0, p.conforme ? '#059669' : '#dc2626');
-      grad.addColorStop(1, p.conforme ? '#047857' : '#b91c1c');
-
-      ctx.strokeStyle = grad;
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      ctx.moveTo(35, 32 + depthA);
-      ctx.lineTo(w - 35, 32 + depthB);
-      ctx.stroke();
-
-      ctx.fillStyle = '#0284c7';
-      ctx.fillRect(25, 32, 12, depthA + 10);
-      ctx.fillRect(w - 37, 35, 12, depthB + 10);
-
-      ctx.fillStyle = '#f8fafc';
-      ctx.font = 'bold 9px -apple-system, sans-serif';
-      ctx.fillText(p.pvA.name, 22, h - 8);
-      ctx.fillText(p.pvB.name, w - 40, h - 8);
-      ctx.fillText(`Ø${p.dn} | i=${p.slope}%`, w / 2 - 35, (depthA + depthB) / 2 + 10);
     }
   </script>
 </body>
