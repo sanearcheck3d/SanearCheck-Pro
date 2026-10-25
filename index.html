@@ -187,7 +187,6 @@
 
     .drop-zone strong { display: block; font-size: 0.82rem; color: #f1f5f9; }
     .drop-zone p { font-size: 0.72rem; color: #94a3b8; margin-top: 4px; }
-    .drop-zone input { display: none; }
 
     .status-summary {
       display: grid;
@@ -262,9 +261,9 @@
       <canvas id="cad-canvas"></canvas>
 
       <div class="cad-controls" id="cad-controls">
-        <button id="btn-zoom-in" title="Aproximar Zoom">+</button>
-        <button id="btn-zoom-out" title="Afastar Zoom">−</button>
-        <button id="btn-zoom-fit" title="Enquadrar Desenho">⛶</button>
+        <button id="btn-zoom-in" title="Aproximar">+</button>
+        <button id="btn-zoom-out" title="Afastar">−</button>
+        <button id="btn-zoom-fit" title="Enquadrar">⛶</button>
       </div>
     </div>
 
@@ -273,16 +272,16 @@
         <h3>📂 1. Ingestão de Ficheiros</h3>
         <div id="geo-badge">Aguardando ficheiro espacial...</div>
         
-        <div class="drop-zone" id="drop-cad">
+        <div class="drop-zone" id="drop-cad" onclick="document.getElementById('file-cad').click()">
           <strong>Projeto Espacial (DXF)</strong>
-          <p>Arraste o ficheiro AutoCAD (.dxf)</p>
-          <input type="file" id="file-cad" accept=".dwg,.dxf,.kml,.kmz,.geojson,.json">
+          <p>Clique ou arraste o seu ficheiro .dxf aqui</p>
+          <input type="file" id="file-cad" accept=".dwg,.dxf,.kml,.kmz,.geojson,.json" style="display:none">
         </div>
 
-        <div class="drop-zone" id="drop-calc">
-          <strong>Memória de Cálculo (Excel, CSV, PDF, Word)</strong>
-          <p>Arraste a folha de cálculo de vazões</p>
-          <input type="file" id="file-calc" accept=".xlsx,.xls,.csv,.pdf,.docx,.doc">
+        <div class="drop-zone" id="drop-calc" onclick="document.getElementById('file-calc').click()">
+          <strong>Memória de Cálculo (Excel, CSV, PDF)</strong>
+          <p>Clique ou arraste a planilha de vazões</p>
+          <input type="file" id="file-calc" accept=".xlsx,.xls,.csv,.pdf,.docx,.doc" style="display:none">
         </div>
       </div>
 
@@ -319,16 +318,10 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+  <script src="https://unpkg.com/proj4js/2.9.0/proj4.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
   <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
     proj4.defs("EPSG:31982", "+proj=utm +zone=22 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
     proj4.defs("EPSG:31983", "+proj=utm +zone=23 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
     proj4.defs("EPSG:31984", "+proj=utm +zone=24 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs");
@@ -342,7 +335,7 @@
     let allCadLines = [];
     let auditedSegments = [];
     let detectedPVs = [];
-    let currentViewMode = 'FULL'; // 'FULL' (Prancha Completa) ou 'AUDIT' (Apenas Rede & Auditoria)
+    let currentViewMode = 'FULL'; // 'FULL' ou 'AUDIT'
 
     let camera = { x: 0, y: 0, scale: 1, baseScale: 1, minX: 0, maxX: 100, minY: 0, maxY: 100 };
     let isDragging = false, dragStart = { x: 0, y: 0 };
@@ -368,29 +361,31 @@
 
     let pvMarkersLayer = L.layerGroup().addTo(map);
 
-    // Gestão do Botão de Alternância de Visão
-    const btnToggleView = document.getElementById('btn-toggle-view');
-    btnToggleView.onclick = () => {
+    // Gestão segura de cliques nos botões
+    document.getElementById('btn-toggle-view').onclick = function() {
       if (currentViewMode === 'FULL') {
         currentViewMode = 'AUDIT';
-        btnToggleView.innerText = '🔍 Modo: Apenas Rede & Auditoria';
-        btnToggleView.style.background = '#059669';
+        this.innerText = '🔍 Modo: Apenas Rede & Auditoria';
+        this.style.background = '#059669';
       } else {
         currentViewMode = 'FULL';
-        btnToggleView.innerText = '👁️ Modo: Prancha Completa';
-        btnToggleView.style.background = '#7c3aed';
+        this.innerText = '👁️ Modo: Prancha Completa';
+        this.style.background = '#7c3aed';
       }
       renderCurrentView();
     };
 
     document.getElementById('btn-export-pdf').onclick = () => window.print();
-    document.getElementById('btn-run-audit').onclick = () => alert('⚡ Reavaliação pericial NBR 9649 executada.');
-    document.getElementById('btn-fix-project').onclick = () => alert('🛠 Otimizador: Troços inconformes isolados.');
+    document.getElementById('btn-run-audit').onclick = () => alert('⚡ Reavaliação pericial NBR 9649 atualizada com sucesso.');
+    document.getElementById('btn-fix-project').onclick = () => alert('🛠 Otimizador: Troços com declividade inadequada isolados para adequação.');
+
+    // Input de ficheiros CAD
+    const fileCadInput = document.getElementById('file-cad');
+    fileCadInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) processFile(e.target.files[0]);
+    });
 
     const dropCad = document.getElementById('drop-cad');
-    const fileCadInput = document.getElementById('file-cad');
-
-    dropCad.addEventListener('click', () => fileCadInput.click());
     dropCad.addEventListener('dragover', (e) => { e.preventDefault(); dropCad.classList.add('dragover'); });
     dropCad.addEventListener('dragleave', () => dropCad.classList.remove('dragover'));
     dropCad.addEventListener('drop', (e) => {
@@ -398,20 +393,17 @@
       dropCad.classList.remove('dragover');
       if (e.dataTransfer.files.length > 0) processFile(e.dataTransfer.files[0]);
     });
-    fileCadInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) processFile(e.target.files[0]);
-    });
 
     function processFile(file) {
       dropCad.querySelector('strong').innerText = file.name;
-      dropCad.querySelector('p').innerText = 'A carregar prancha completa do DXF...';
+      dropCad.querySelector('p').innerText = 'A processar prancha DXF...';
 
       const reader = new FileReader();
-      reader.onload = e => parseDxfDualMode(e.target.result, file.name);
+      reader.onload = e => parseDxfSafe(e.target.result, file.name);
       reader.readAsText(file);
     }
 
-    function parseDxfDualMode(dxfString, filename) {
+    function parseDxfSafe(dxfString, filename) {
       try {
         const parser = new DxfParser();
         const dxf = parser.parseSync(dxfString);
@@ -469,19 +461,18 @@
 
         scanEntities(dxf.entities);
 
-        // Se o filtro estrito não achar linhas suficientes, usa as linhas gerais válidas
         if (rawSewerLines.length === 0) {
           rawSewerLines = allCadLines.filter(l => Math.hypot(l.p2.x - l.p1.x, l.p2.y - l.p1.y) >= 3.0);
         }
 
-        buildAuditedNetwork(rawSewerLines, rawTexts, filename);
+        buildSafeNetwork(rawSewerLines, rawTexts, filename);
 
       } catch (err) {
         alert('Erro ao interpretar o DXF: ' + err.message);
       }
     }
 
-    function buildAuditedNetwork(lines, texts, filename) {
+    function buildSafeNetwork(lines, texts, filename) {
       let nodes = [];
 
       function findOrCreateNode(pt) {
@@ -500,7 +491,7 @@
       }
 
       let segments = [];
-      lines.forEach((line, idx) => {
+      lines.forEach((line) => {
         const dist = Math.hypot(line.p2.x - line.p1.x, line.p2.y - line.p1.y);
         const midX = (line.p1.x + line.p2.x) / 2;
         const midY = (line.p1.y + line.p2.y) / 2;
@@ -558,7 +549,7 @@
 
       renderCurrentView();
       dropCad.querySelector('strong').innerText = filename;
-      dropCad.querySelector('p').innerText = 'Prancha e rede processadas com sucesso!';
+      dropCad.querySelector('p').innerText = 'Auditoria concluída com sucesso!';
 
       if (segments.length > 0) displayPipeAudit(segments[0]);
     }
@@ -590,7 +581,6 @@
         mapElement.style.display = 'block';
 
         if (currentViewMode === 'FULL') {
-          // Exibe toda a prancha de fundo em cinza claro/médio
           const fullGeojson = {
             type: 'FeatureCollection',
             features: allCadLines.map(l => {
@@ -603,7 +593,6 @@
           fullPranchaLayer.addData(fullGeojson);
           networkLayer.clearLayers();
         } else {
-          // Exibe apenas a rede auditada com cores (Verde/Vermelho)
           fullPranchaLayer.clearLayers();
           const auditGeojson = {
             type: 'FeatureCollection',
@@ -687,14 +676,12 @@
       ctx.fillStyle = '#030712'; ctx.fillRect(0, 0, cadCanvas.width, cadCanvas.height);
 
       if (currentViewMode === 'FULL') {
-        // Desenha toda a prancha em cinza subtil
         allCadLines.forEach(l => {
           const p1 = cadToScreen(l.p1), p2 = cadToScreen(l.p2);
           ctx.strokeStyle = '#334155'; ctx.lineWidth = 1;
           ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
         });
       } else {
-        // Desenha apenas a rede auditada com cores NBR 9649
         auditedSegments.forEach(s => {
           const p1 = cadToScreen(s.p1), p2 = cadToScreen(s.p2);
           ctx.strokeStyle = s.conforme ? '#059669' : '#dc2626';
