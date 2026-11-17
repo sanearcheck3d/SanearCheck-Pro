@@ -20,10 +20,8 @@ button{cursor:pointer}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 20px;background:rgba(14,23,39,.92);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow)}
 .brand{display:flex;align-items:center;gap:13px;min-width:0}
 .brand-mark{width:54px;height:54px;flex:none;border-radius:15px;display:grid;place-items:center;background:linear-gradient(145deg,#06254a,#07182d);border:1px solid #12639a;color:var(--cyan);box-shadow:0 0 24px rgba(8,200,240,.12)}
-.brand-mark svg{width:29px;height:29px}
 .brand-name{font-size:19px;font-weight:800;letter-spacing:-.7px;line-height:1.15}
 .brand-name span{color:var(--cyan)}
-.brand-mark img{display:block}
 .topbar{background:linear-gradient(110deg,rgba(7,26,49,.98),rgba(4,18,38,.96));border-color:#16466e}
 .panel{border-color:#173b5b}
 .btn-primary{background:linear-gradient(110deg,#078fc9,#08c8f0);color:#031426}
@@ -153,7 +151,7 @@ footer{display:flex;justify-content:space-between;gap:12px;margin:22px 3px 4px;c
  .viewport,#viewport3d{display:none!important}
  .viewport-footer{display:none!important}
  footer{display:flex!important;margin-top:8px!important;break-after:page}
- #folha-timbrada{display:block!important;position:static!important;inset:auto!important;width:100%!important;background:#fff!important;color:#111827!important;font:9pt Arial,sans-serif;break-before:page;page-break-before:always}
+ #folha-timbrada{display:block!important;position:static!important;inset:auto!important;width:100%!important;background:#fff!important;color:#111827!important;font:9pt Arial,sans-serif;break-before:avoid!important;page-break-before:avoid!important;margin-top:0!important;padding-top:0!important;}
  .timbrado-header{display:flex;justify-content:space-between;gap:15px;background:#fff!important;color:#687786!important;border:1px solid #315b83!important;border-bottom:1px solid #315b83!important;padding:12px;border-radius:12px;margin-bottom:12px;break-inside:avoid}
  .timbrado-header *{color:#687786!important}
  .timbrado-header h1{color:#08bfe8!important}
@@ -176,8 +174,8 @@ footer{display:flex;justify-content:space-between;gap:12px;margin:22px 3px 4px;c
 <div class="app" role="application" aria-label="SanearCheck 3D Aplicação de Auditoria">
   <header class="topbar">
     <div class="brand">
-      <div class="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="29" height="29" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      <div class="brand-mark" aria-hidden="true" style="background:linear-gradient(135deg,#0ea5e9,#0284c7);display:grid;place-items:center;color:#fff;font-weight:900;font-size:16px;box-shadow:0 0 20px rgba(14,165,233,.4)">
+        SC3D
       </div>
       <div>
         <div class="brand-name">Sanear<span>Check</span> 3D</div>
@@ -297,7 +295,13 @@ footer{display:flex;justify-content:space-between;gap:12px;margin:22px 3px 4px;c
 
 <div id="folha-timbrada">
   <div class="timbrado-header timbrado-header-logo">
-    <div class="timbrado-logo"><svg viewBox="0 0 24 24" width="120" height="40" fill="none" stroke="#08bfe8" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+    <div class="timbrado-logo" style="display:flex;align-items:center;gap:10px;">
+      <div style="width:36px;height:36px;background:#0ea5e9;color:#fff;border-radius:8px;display:grid;place-items:center;font-weight:900;font-size:14px;">SC</div>
+      <div>
+        <div style="font-size:11pt;font-weight:800;color:#0f172a;letter-spacing:-0.5px;">Sanear<span style="color:#0ea5e9">Check</span> 3D</div>
+        <div style="font-size:7pt;color:#64748b;letter-spacing:1px;">ENGENHARIA SANITÁRIA EM 3 DIMENSÕES</div>
+      </div>
+    </div>
     <div class="timbrado-date">Data de emissão: <span id="tmbGeralData"></span></div>
   </div>
   <div class="timbrado-box"><h3>1. SUMÁRIO EXECUTIVO DA BACIA</h3><table class="timbrado-table"><tr><td><strong>Total de Trechos Analisados:</strong> <span id="tmbTotTrechos"></span></td><td><strong>Trechos Conformes:</strong> <span id="tmbTotConf"></span></td></tr><tr><td><strong>Reprovados em Projeto (Etapa 1):</strong> <span id="tmbTotRepProj"></span></td><td><strong>Reprovados em Execução (Etapa 2):</strong> <span id="tmbTotRepObra"></span></td></tr><tr><td><strong>Sem vazão ou dados inválidos (não auditados):</strong> <span id="tmbTotInv"></span></td><td><strong>Trechos com alerta de consistência:</strong> <span id="tmbTotAl"></span></td></tr></table></div>
