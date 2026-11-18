@@ -19,9 +19,11 @@ button{cursor:pointer}
 .app{max-width:1500px;margin:auto;padding:22px}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 20px;background:rgba(14,23,39,.92);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow)}
 .brand{display:flex;align-items:center;gap:13px;min-width:0}
-.brand-mark{width:54px;height:54px;flex:none;border-radius:15px;display:grid;place-items:center;background:transparent;border:none;box-shadow:none}
+.brand-mark{width:54px;height:54px;flex:none;border-radius:15px;display:grid;place-items:center;background:linear-gradient(145deg,#06254a,#07182d);border:1px solid #12639a;color:var(--cyan);box-shadow:0 0 24px rgba(8,200,240,.12)}
+.brand-mark svg{width:29px;height:29px}
 .brand-name{font-size:19px;font-weight:800;letter-spacing:-.7px;line-height:1.15}
 .brand-name span{color:var(--cyan)}
+.brand-mark img{display:block}
 .topbar{background:linear-gradient(110deg,rgba(7,26,49,.98),rgba(4,18,38,.96));border-color:#16466e}
 .panel{border-color:#173b5b}
 .btn-primary{background:linear-gradient(110deg,#078fc9,#08c8f0);color:#031426}
@@ -114,11 +116,9 @@ h1{font-size:clamp(25px,3vw,34px);letter-spacing:-1.2px;line-height:1.12;margin:
 .dxf-layer span{color:var(--muted)}
 .dxf-opcoes{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0;font-size:12px;color:var(--muted);align-items:center}
 .dxf-opcoes label{display:flex;align-items:center;gap:7px}
-/* MODAIS BLINDADOS PARA IPHONE / MOBILE */
-.modal-backdrop{position:fixed;inset:0;background:rgba(2,6,14,.82);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:12px;z-index:9999;overflow-y:auto}
-.modal-box{width:min(560px,100%);max-height:90vh;background:#101b2d;border:1px solid #30435b;border-radius:18px;padding:18px;box-shadow:0 25px 90px #0009;display:flex;flex-direction:column;overflow-y:auto;margin:auto}
+.modal-backdrop{position:fixed;inset:0;background:rgba(2,6,14,.78);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:18px;z-index:20}
+.modal-box{width:min(560px,100%);background:#101b2d;border:1px solid #30435b;border-radius:18px;padding:22px;box-shadow:0 25px 90px #0009}
 .modal-box .report{margin:15px 0}
-#dxfLayers{max-height:160px!important;overflow-y:auto!important;border:1px solid var(--border);border-radius:10px;padding:6px}
 footer{display:flex;justify-content:space-between;gap:12px;margin:22px 3px 4px;color:#6f849d;font-size:11px}
 @media(max-width:1050px){.layout{grid-template-columns:minmax(280px,340px) minmax(0,1fr)}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.viewport{height:370px}}
 @media(max-width:760px){.app{padding:12px}.topbar{padding:13px;border-radius:15px}.brand-mark{width:40px;height:40px}.brand-name{font-size:16px}.brand-sub{font-size:9px;letter-spacing:1px}.version{display:none}.page-intro{display:block;margin:23px 2px 16px}.page-intro .tag{display:inline-block;margin-top:12px}.layout{grid-template-columns:1fr}.stack{gap:13px}.panel{padding:15px}.metrics{gap:8px}.metric{padding:12px}.metric-value{font-size:23px}.viewport{height:330px}.viewport-head{padding:14px}.field{grid-template-columns:minmax(0,1fr) minmax(115px,42%)}footer{flex-direction:column}.select-panel{align-items:flex-start;flex-direction:column}.select-panel select{width:100%}}
@@ -127,11 +127,13 @@ footer{display:flex;justify-content:space-between;gap:12px;margin:22px 3px 4px;c
 #folha-timbrada{display:none}
 @media print{
  @page{size:A4 portrait;margin:12mm}
+ /* No PDF, ocultar a interface operacional e manter só o relatório da bacia. */
  body > *{display:none!important}
  body .app{display:block!important}
  body .app > *{display:none!important}
  body .app #folha-timbrada{display:block!important;break-before:avoid!important;page-break-before:avoid!important}
  #folha-timbrada *{visibility:visible!important}
+
  html,body{background:#fff!important;color:#111827!important;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
  body *{visibility:visible!important;box-shadow:none!important;text-shadow:none!important}
  .app{display:block!important;max-width:none!important;width:100%!important;margin:0!important;padding:0!important;background:#fff!important;color:#111827!important}
@@ -163,16 +165,173 @@ footer{display:flex;justify-content:space-between;gap:12px;margin:22px 3px 4px;c
  .timbrado-table th{background:#fff!important;color:#8b929b!important;border-color:#315b83!important}.timbrado-status{padding:7px;text-align:center;font-weight:bold;border-radius:4px;margin:10px 0}
  .timbrado-aprovado{background:#dcfce7!important;color:#166534!important;border:1px solid #86efac}.timbrado-reprovado{background:#fee2e2!important;color:#991b1b!important;border:1px solid #fca5a5}
  .timbrado-footer{display:flex;justify-content:space-between;gap:10px;border-top:2px solid #08aeca;padding-top:7px;color:#46627b;font-size:7pt}
+ /* Garantia: só o relatório consolidado aparece no PDF. */
  .app{display:block!important}
  .app > *{display:none!important}
  .app #folha-timbrada{display:block!important;position:static!important;break-before:avoid!important;page-break-before:avoid!important}
  #folha-timbrada .timbrado-header{display:flex!important}
+
 }
 </style>
+
+<style>
+@media print {
+  #folha-timbrada .timbrado-header-logo {
+    display:flex!important; align-items:center!important; justify-content:space-between!important;
+    gap:12px!important; background:#fff!important; color:#64748b!important;
+    border:1px solid #38658c!important; border-radius:12px!important;
+    border-bottom:1px solid #38658c!important; padding:8px 12px!important;
+    margin-bottom:12px!important; break-inside:avoid!important;
+  }
+  #folha-timbrada .timbrado-logo { flex:1 1 auto!important; min-width:0!important; }
+  #folha-timbrada .timbrado-logo img {
+    display:block!important; width:100%!important; max-width:330px!important;
+    height:auto!important; max-height:70px!important; object-fit:contain!important;
+    object-position:left center!important;
+  }
+  #folha-timbrada .timbrado-date { color:#64748b!important; font-size:8pt!important; text-align:right!important; }
+}
+</style>
+
+
+<style>
+@media print {
+  html, body { margin-top:0!important; padding-top:0!important; }
+  #folha-timbrada {
+    margin-top:0!important; padding-top:0!important;
+    break-before:avoid-page!important; page-break-before:avoid!important;
+  }
+  #folha-timbrada .timbrado-header-logo {
+    break-before:avoid-page!important; page-break-before:avoid!important;
+  }
+}
+.skip{position:absolute;left:-999px;top:0;background:#08c8f0;color:#041226;padding:9px 16px;z-index:9999;border-radius:0 0 9px 0;font-weight:700;text-decoration:none}.skip:focus{left:0}
+:focus-visible{outline:2px solid #08c8f0!important;outline-offset:2px}
+.file-label:focus-visible{outline-offset:3px}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+.modal-backdrop{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.modal-box{max-height:calc(100vh - 36px);max-height:calc(100dvh - 36px);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.modal-box>.actions{position:sticky;bottom:-1px;background:#101b2d;padding:12px 0 4px;margin-top:8px;z-index:3;border-top:1px solid #30435b}
+.mapa-mover{background:#0b1626;color:#fff;border:1px solid #30435b;border-radius:8px;padding:8px 11px;font:600 12px/1.2 system-ui,sans-serif;min-height:40px;cursor:pointer}
+.mapa-mover[aria-pressed="true"]{background:#08c8f0;color:#041226}
+@media(max-width:760px){.mapa-area{height:58vh!important;min-height:320px}.field input,.field select,.select-panel select{font-size:16px}.modal-backdrop{padding:10px}.modal-box{padding:16px}.mapa-leg{font-size:10px!important;line-height:1.35!important;padding:6px 8px!important;max-width:60vw}.mapa-leg i{width:18px!important}.modal-box>.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 0 2px}.modal-box>.actions .btn-primary{grid-column:1/-1}.modal-box>.actions .btn{justify-content:center;width:100%}}
+</style>
+
 </head>
 <body>
-<div class="app" role="application" aria-label="SanearCheck 3D Aplicação de Auditoria">
+<a class="skip" href="#principal">Ir para o conteúdo principal</a>
+<div class="app">
   <header class="topbar">
     <div class="brand">
-      <div class="brand-mark" aria-hidden="true" style="background:transparent;border:none;box-shadow:none;">
-        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAADljElEQVR42tz9abAt2XkdiK21d+YZ7/jmqerVXIUaUSjMAAmCgwiAgEBqAKmBkmBLarlliZpsq9t2WOEO29ER3e2I/mW3wxEeOtxuUaIkUJzEEQQIEDOqUHPVq1ev3nzne8+cmXt//pHT3jvzvHqg5O4I33hR9YZ7z8mTufe3v299a62P6tQzAAT5lwCQ8g8QIQBSIBAw/0sSEAHr7yMBsPh3EQEokOrbWX5L/m/1b8oXr96ueIX8R0BB/W/FuxFE/hP5NTX+GYL8W5x/K99+yVfxduXVsboRxRsKyz9L8frlRxPn+sv7I5Tin1DcNYLlbSluGgkUd4gsLp7Ve0r5zuF1uh+3/P7yxvoXzvI/zgtL9e8s7hSFgIjzEvndKH/IeUH/moolUD+36nvI4i4Va6J+1gyfVfkD1T+4N56AdzNav5xvpbuuvJfLL8h5BgBYfjgBI/E+SfnP7ropf8x523IVVss+WGzFPmLLpqpeAe7zqJ6Pc6uE3ucvFl/1IcI17r6asHGf8kebX4dI/S75Cpb6FfJVTWfJSf1g3YUKYX45/uPzniD9jSoIHnd9l9qWfNvzdm6ZsynYsm/yjUj3YTnvm69/Vk+bzcUm4bqkQPJd7C9QQWOFiPhLw10AVQAJH18z/rjBjXe4LbIs0JUBLH+ILXssyl/eCwNk9TGKP0rjVeuHWcYT9ypZrXr6d6haQyyPkPpGVQs+X+OEsxlZXqN4YQjLAwWbv6uDNN1lIi2v4j4ierue9RGUR3E3MJd3Jt+qLCJNsdSKi5dyA7LergxeBOG+D0+CKlI5G8j9v3+YFKdSvfhb9p+0xTK039Y6EtBfxFIdbBApXrJ6XCLLFjDbd7q/baQOct7NKbINaSwK0t2Q4QlT3EWJ3v3Ol/FSvHeld8g2okYReKQ+YKR5Zd4lSRlvi5DsB4Ei6pfpFd1gWl8Eg7/xglt1pRT3BJIlT91deSyedXD0Vw+73iJOhK3PIWneXakDuBSHpnsoFluMrCOAeyxXIULc9d54A/FXjoSh1vt8oFCcc5XNYFxuYDoprv+Q6Oc4dBLGIuyINNe8oHFIN3JUkaUnybsdnQiOfbI+7BGhztZ+iK87RdwqBSHbczhZGtzunPbdKR+kLP92udtP1fZU6hNWCL7ba/n7yV2E0vZ5y/UrzcyXbftTvAuTIDUS54f9Byr1uYSWQLosFsjyB8GWG168giz9SXnXA6atQrvzd9NJRIJ3k3d5xpKnQHU6Ez5e8WpEd9WyDtjwg0EZsiQ/m1oK0vx4ZJVelQGZZflY/lAVT8WptKoElG1bSdwN4Z56efgWkTrW0ikGy8jmPklxsrWy5vfqHxAMq3kJjhAvh6xOzSq9E6ecLY/V+lzPLzg/fZwDQqrjFUsTZ3GKGPckrNLSOoHJ/6I41oXlAcxw3QTrms1StcJF2Kje3Kq3upMOgFKcDxKmoPzhQpcEtSYb9YkHweQnQL10qkKArfHAhxnKArCx3+kkRzUK0rqrpcKZ3PjmgUrOzWe9Zlu2MxtnCt3syalQvLXuFYIC8TaVczX++4lbY8FJdoMn1qxv/YKOQXZbIzF0PzpESIJBfRLeWAZ1Ql2pwIU+6nyQwc2jtD2takfRKy+k7TxbnuU7EZZO8CrzkiD1EW9h3HVG0ojVcOOGSPMFGUHQqGacSN+4ZGEzk2nEjDBHlABhq6N4XSijrRiiczECJ1ILQiBW6rcIUc066adbYcMvBMU9W5rRqHnq13HExUaJZibSSGylQifcBMm/opYfWbLQvH+in17W+1cEbi1M984vq0O9f89PZbZuj/BW10etuNUA0YQYxT2yGRS7DBBisi63nOpUqsffQLcrHJb5HvDeHYjcCCfNvJEOiskafvTXJtuSR2liMeJVZs5dltZcyzuI/BgJDxBybomPdDAEXUXCByvu1cjSmCpeCuM+HX9DiQsRyjLEQ9oOWPHwWmcvMLhhLfAX3fSebl8gxKelLqrLJLXtxGLVIGiPtd4blCUGnQrezcDKOyVLDwypYkhZPrrQYLBq2Sx82LYp6yTbiWD0MGMiqhJdFy1xTncHoPfBhjJMhfmnVAm3G18ZRDap3rWZJRBN3FykWQb6+Q7LA6IR4t16ks3krgl+cknhyUaizcZKbE0Zg6aJOAkq68YdgwNByo+1DKlzQiGDEs1dU0vzZmk7nJy2jDTKQrpZjLTnQBIW1XQqvwoAD28dGbQl63fIi6HweuilUjXSE7ZVpX5FZ/2WvUeJwkRvaRoUNljqhd2EkaTZGmpZwHdAJJqoXQC0w+1WSmtZ5qfMIWLflrf+qQAxvstP3FVT8+7fNEhK2KxWGxGa7rJmCOc3Yeq6Mn23a/V/K+ItGbonvhO02vAn3vl+iAOvkm3/VMLk8m4oZXhiRF4C4INEYcYnP8SyaCzAFjwAvHMC2sR5JMA86SUgDDu6IT4iHmPiblZfs8GwFFFr65oTjfxNWmrjJXBD2MFsfG8LRGhbX7S8G263S4KDvZlR0I8u4q9VLoMs6TYzGtuI74bu3GENc1k8YPt3MEzCRRr5Q5RXoV7Xw2eNhGi4U+YG9Urw0PMgwNY+Wb1UiCb9pkrVqiUr0o5GuRtJ6LW8WgB5p88jrf1NaYsX0gY0urfI+tfTGn0E795EeNfGB+GV/grkjjQxOA65+04k06+9Nti180RjYjXZWqUJW5mR5rC0B6c/9bZ82d5x/0b691D+rTflGfa6K1h2nZ/e0jVvK09b55l9WqFq41qD8L4XQ9pU699+J03N7L4xX+T5hXm5J4N4x3wT7o80fU+Nf+3z9l9Lde31/Vvd90/d+9/r3T6/T+89c//8N/+w+9+Z/f/Z7e/T3d9/+/576e3t784+a+tNvf/7//b36p7v7/+6//7r/f/n//7f//f//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//up500$.json
+      <div class="brand-mark" aria-hidden="true"><img src="logo.png" alt="" style="width:100%;height:100%;object-fit:contain;border-radius:14px"></div>
+      <div><div class="brand-name">Sanear<span style="color:#f3f8ff">Check</span> <span>3D</span></div><div class="brand-sub">ENGENHARIA SANITÁRIA EM 3 DIMENSÕES</div></div>
+    </div>
+    <div class="header-right"><span class="version">PLATAFORMA DE AUDITORIA</span><span class="status" id="statusGeralBadge">SISTEMA ATIVO</span></div>
+  </header>
+
+  <section class="page-intro" aria-label="Apresentação da ferramenta">
+    <div><div class="eyebrow">Central de fiscalização</div><h1>Auditoria hidráulica</h1><p>Analise os parâmetros do trecho, verifique a conformidade e explore a seção hidráulica em ambiente tridimensional.</p></div>
+    <div class="tag">ABNT NBR 9649 · Análise técnica</div>
+  </section>
+
+  <main class="layout" id="principal" tabindex="-1">
+    <aside class="stack">
+      <section class="panel">
+        <div class="panel-head"><div><h2 class="panel-title">Parâmetros do trecho</h2><div class="panel-subtitle">Dados geométricos, topográficos e hidráulicos</div></div><span class="step">ENTRADA 01</span></div>
+        <div class="form-section">Identificação e geometria</div>
+        <div class="field"><label for="trechoId">Trecho selecionado</label><input type="text" id="trechoId" value="Trecho 01" readonly style="color:var(--cyan)"></div>
+        <div class="field"><label for="inputDn">Diâmetro nominal (mm)</label><input type="number" id="inputDn" value="150" step="25" onchange="atualizarTrechoManual()"></div>
+        <div class="form-section">Topografia</div>
+        <div class="field"><label for="inputDecliv">Declividade real (m/m)</label><input type="number" id="inputDecliv" value="0.0055" step="0.0001" onchange="atualizarTrechoManual()"></div>
+        <div class="field"><label for="inputCotaMont">Cota de montante (m)</label><input type="number" id="inputCotaMont" value="100.000" step="0.001" onchange="atualizarTrechoManual()"></div>
+        <div class="field"><label for="inputCotaJus">Cota de jusante (m)</label><input type="number" id="inputCotaJus" value="99.725" step="0.001" onchange="atualizarTrechoManual()"></div>
+        <div class="field"><label for="inputL">Comprimento do trecho (m) · opcional</label><input type="number" id="inputL" step="0.1" min="0" placeholder="—" onchange="atualizarTrechoManual()"></div>
+        <div class="form-section">Condições de escoamento</div>
+        <div class="field"><label for="inputQ">Vazão final Qf (L/s)</label><input type="number" id="inputQ" value="2.50" step="0.1" onchange="atualizarTrechoManual()"></div>
+        <div class="field"><label for="inputQi" title="NBR 9649, 5.1.4: a tensão trativa e a declividade mínima são verificadas para a vazão inicial; a lâmina, a velocidade e a velocidade crítica, para a final. Se vazio, usa-se Qf nos dois.">Vazão inicial Qi (L/s) · opcional</label><input type="number" id="inputQi" step="0.1" min="0" placeholder="= Qf" onchange="atualizarTrechoManual()"></div>
+        <div class="field"><label for="selectMetodo">Método numérico</label><select id="selectMetodo" onchange="atualizarTrechoManual()"><option value="newton" selected>Newton–Raphson</option><option value="secante">Secante</option><option value="bisseccao">Bissecção</option></select></div>
+        <div class="field"><label for="chkVmin" title="A NBR 9649 verifica a autolimpeza pela tensão trativa (τ ≥ 1 Pa). O texto da NBR 9649 (1986) não prevê velocidade mínima: a autolimpeza é verificada pela tensão trativa (item 5.1.4). Marque só se a equipe quiser adotar 0,60 m/s como critério adicional.">Exigir V ≥ 0,60 m/s <span style="color:var(--muted);font-size:10px">(critério da equipe; não consta na NBR 9649)</span></label><input type="checkbox" id="chkVmin" onchange="trocarVmin(this.checked)" style="width:auto;justify-self:end"></div>
+        <input type="file" id="fileCsv" class="file-input" accept=".csv,.txt,text/csv,text/plain,application/vnd.ms-excel" onchange="importarCsv(event)">
+        <div class="actions"><button type="button" class="btn btn-secondary file-label" onclick="document.getElementById('fileCsv').click()">↥ Importar CSV</button><button class="btn btn-primary" onclick="abrirModalLote()">▦ Auditar lote</button><button class="btn btn-secondary" onclick="baixarModeloCsv()" title="Baixar um CSV de exemplo com o formato esperado">⇩ CSV modelo</button><button class="btn btn-secondary" onclick="abrirModalDxf()" title="Ler uma planta DXF e gerar os trechos com a geometria">⤒ Importar DXF</button></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><div><h2 class="panel-title">Validação preliminar</h2><div class="panel-subtitle">Etapa 1 · Verificação de projeto</div></div><span class="step">ETAPA 01</span></div>
+        <div class="validation" id="validacaoProjetoBox" role="status" aria-live="polite"><div class="validation-icon">✓</div><div><strong>Validando parâmetros…</strong><p>Aguarde a análise do trecho.</p></div></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><div><h2 class="panel-title">Parecer técnico</h2><div class="panel-subtitle">Etapa 2 · Resultado da auditoria</div></div><span class="step">ETAPA 02</span></div>
+        <div class="report" id="parecerTexto" role="status" aria-live="polite">Processando laudo…</div>
+      </section>
+    </aside>
+
+    <section class="stack">
+      <section class="panel select-panel">
+        <label for="selectTrecho">Trecho em inspeção</label>
+        <select id="selectTrecho" onchange="mudarTrechoSelecionado()"><option value="0">Trecho 01 (PV01 - PV02)</option></select>
+      </section>
+
+      <section class="metrics" aria-label="Indicadores hidráulicos">
+        <article class="metric"><div class="metric-top"><span>Lâmina líquida</span><span class="metric-icon">≈</span></div><div class="metric-value" id="kpiY">--</div><div class="metric-note" id="kpiYRatio">y/D: --</div></article>
+        <article class="metric"><div class="metric-top"><span>Velocidade</span><span class="metric-icon">↗</span></div><div class="metric-value" id="kpiV">--</div><div class="metric-note">Referência: V ≤ 5,00 m/s (NBR 9649, 5.1.5)</div></article>
+        <article class="metric"><div class="metric-top"><span>Tensão trativa</span><span class="metric-icon">τ</span></div><div class="metric-value" id="kpiTau">--</div><div class="metric-note">Referência: ≥ 1,00 Pa</div></article>
+        <article class="metric"><div class="metric-top"><span>Iterações</span><span class="metric-icon">ƒx</span></div><div class="metric-value" id="kpiIt">--</div><div class="metric-note" id="kpiMetodoNome">Newton–Raphson</div></article>
+      </section>
+
+      <section class="panel viewport-panel">
+        <div class="viewport-head"><div><div class="viewport-heading" id="vpTitulo">Modelo hidráulico 3D</div><div class="viewport-sub" id="vpSub">Visualização interativa da seção e da lâmina calculada</div></div><span class="live-label">● MODELO INTERATIVO</span></div>
+        <div class="vtabs" role="tablist" aria-label="Forma de visualização"><button class="vtab ativa" id="tab3d" role="tab" aria-selected="true" aria-controls="vista3d" onclick="abrirAba('3d')">Modelo 3D</button><button class="vtab" id="tabMapa" role="tab" aria-selected="false" aria-controls="painelMapa" tabindex="-1" onclick="abrirAba('mapa')">Mapa da rede</button></div>
+        <div class="viewport" id="vista3d" role="tabpanel" aria-labelledby="tab3d"><div class="legend"><div class="legend-item"><span class="dot"></span>Tubulação translúcida</div><div class="legend-item"><span class="dot water"></span>Lâmina líquida</div><div class="legend-item"><span class="dot limit"></span>Limite de 75%</div></div><div id="viewport3d" role="img" aria-label="Seção do tubo em 3D"></div><div class="blocked" id="msg3dBloqueado">Trecho bloqueado<span id="msg3dDetalhe">Inconformidade hidráulica ou geométrica</span></div><div class="viewport-help">Arraste para orbitar · Scroll para zoom</div></div>
+        <div id="painelMapa" style="display:none" role="tabpanel" aria-labelledby="tabMapa">
+          <div class="mapa-bar">
+            <label>Sistema de coordenadas <select id="selCrs" onchange="definirCrs(this.value)"></select></label>
+            <label>Ajuste E (m) <input type="number" id="offE" value="0" step="1" onchange="mudarOffset()"></label>
+            <label>Ajuste N (m) <input type="number" id="offN" value="0" step="1" onchange="mudarOffset()"></label>
+          </div>
+          <div class="mapa-area"><div id="mapaRede"></div><div class="mapa-msg" id="mapaMsg" role="status"></div></div>
+          <div class="mapa-info" id="mapaInfo"></div>
+        </div>
+        <div class="viewport-footer"><span id="rodapeEsq">Visualização Three.js</span><span id="rodapeDir">Representação geométrica do trecho selecionado</span></div>
+      </section>
+    </section>
+  </main>
+  <footer><span>SanearCheck 3D · Ferramenta de apoio à auditoria hidráulica</span><span>Os resultados dependem dos dados de entrada e da validação técnica responsável.</span></footer>
+</div>
+
+<div class="modal-backdrop" id="modalLote" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">
+  <div class="modal-box"><div class="panel-head"><div><h2 class="panel-title" id="modalTitulo">Auditoria consolidada da bacia</h2><div class="panel-subtitle">Resumo dos resultados por trecho</div></div><span class="step">LOTE</span></div><div id="modalLoteConteudo" class="report" style="font-family:inherit;line-height:1.9"></div><div class="actions"><button class="btn btn-secondary" onclick="fecharModalLote()">Fechar</button><button class="btn btn-secondary" onclick="baixarResultadosCsv()">⇩ Resultados (CSV)</button><button class="btn btn-primary btn-block" onclick="imprimirLaudoGeralLote()">Imprimir / salvar PDF</button></div></div>
+</div>
+
+<div class="modal-backdrop" id="modalDxf" role="dialog" aria-modal="true" aria-labelledby="modalDxfTitulo">
+  <div class="modal-box" style="width:min(720px,100%)">
+    <div class="panel-head"><div><h2 class="panel-title" id="modalDxfTitulo">Importar planta (DXF)</h2><div class="panel-subtitle">Escolha os layers que contêm a rede coletora. Blocos (INSERT) não são lidos: use EXPLODE no CAD antes de exportar.</div></div><span class="step">DXF</span></div>
+    <button type="button" class="btn btn-secondary file-label" onclick="document.getElementById('fileDxf').click()">↥ Escolher arquivo .dxf</button><input type="file" id="fileDxf" class="file-input" onchange="lerDxf(event)">
+    <div id="dxfResumo" style="margin:12px 0;font-size:12px;color:var(--muted);line-height:1.6">Nenhum arquivo carregado.</div>
+    <div id="dxfLayers" style="max-height:210px;overflow:auto;border:1px solid var(--border);border-radius:10px"></div>
+    <div class="dxf-opcoes">
+      <label>Modo de leitura <select id="dxfModo"><option value="rot">rede rotulada (comprimento – Ø – declividade)</option><option value="seg">um trecho por segmento</option><option value="poli">um trecho por polilinha</option></select></label>
+      <label><input type="checkbox" id="dxfInverte"> Inverter o sentido do desenho</label>
+      <label>Coordenadas <select id="dxfCrs" onchange="definirCrs(this.value)"></select></label>
+    </div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.55;margin-bottom:10px">O sentido de cada linha no desenho é tomado como montante → jusante. O DXF traz só a geometria: DN, declividade, cotas e vazão vêm do CSV (use "CSV para completar") ou do formulário. Polilinhas fechadas (lotes, quadras) são ignoradas.</div>
+    <div class="actions"><button class="btn btn-secondary" onclick="fecharModalDxf()">Fechar</button><button class="btn btn-secondary" onclick="baixarCsvDxf()">⇩ CSV para completar</button><button class="btn btn-primary" onclick="carregarDxf()">Carregar na plataforma</button></div>
+  </div>
+</div>
+<div id="folha-timbrada">
+  <div class="timbrado-header timbrado-header-logo">
+    <div class="timbrado-logo"><img src="logo.png" alt="SanearCheck 3D — Engenharia Sanitária em 3 Dimensões" style="width:100%;height:100%;object-fit:contain;border-radius:14px"></div>
+    <div class="timbrado-date">Data de emissão: <span id="tmbGeralData"></span></div>
+  </div>
+  <div class="timbrado-box"><h3>1. SUMÁRIO EXECUTIVO DA BACIA</h3><table class="timbrado-table"><tr><td><strong>Total de Trechos Analisados:</strong> <span id="tmbTotTrechos"></span></td><td><strong>Trechos Conformes:</strong> <span id="tmbTotConf"></span></td></tr><tr><td><strong>Reprovados em Projeto (Etapa 1):</strong> <span id="tmbTotRepProj"></span></td><td><strong>Reprovados em Execução (Etapa 2):</strong> <span id="tmbTotRepObra"></span></td></tr><tr><td><strong>Sem vazão ou dados inválidos (não auditados):</strong> <span id="tmbTotInv"></span></td><td><strong>Trechos com alerta de consistência:</strong> <span id="tmbTotAl"></span></td></tr></table></div>
+  <div class="timbrado-box" id="tmbMapaBox" style="display:none;break-inside:avoid"><h3>PLANTA ESQUEMÁTICA DA REDE</h3><div id="tmbMapa"></div><div id="tmbMapaNota" style="font-size:7pt;color:#475569;margin-top:4px"></div></div>
+  <div class="timbrado-box"><h3>2. TABELA MASTER DE AUDITORIA HIDRÁULICA</h3><table class="timbrado-table"><colgroup><col style="width:4%"><col style="width:23%"><col style="width:6%"><col style="width:8%"><col style="width:7%"><col style="width:8%"><col style="width:7%"><col style="width:6%"><col style="width:31%"></colgroup><thead><tr><th>Nº</th><th>Identificação</th><th>DN (mm)</th><th>I (m/m)</th><th>Q (L/s)</th><th>y/D (%)</th><th>Tau (Pa)</th><th>V (m/s)</th><th>Parecer</th></tr></thead><vibe id="tmbTabelaMaster"></vibe></table></div>
+  <div class="timbrado-status" id="tmbGeralStatusFinal"></div>
+  <div class="timbrado-box"><h3>3. CRITÉRIOS APLICADOS E LIMITAÇÕES</h3><div id="tmbCriterios" style="line-height:1.55"></div></div>
+  <div class="timbrado-box" id="tmbOrigemBox" style="display:none"><h3>4. ORIGEM DOS DADOS E OBSERVAÇÕES DE IMPORTAÇÃO</h3><div id="tmbOrigem" style="line-height:1.55"></div></div>
+  <div class="timbrado-footer"><div>Responsável Técnico: Sâmia Oliveira e Equipe de Engenharia Civil (UVA)</div><div>Normas de referência: ABNT NBR 9649 / NBR 17163</div></div>
+</div>
+
+<!-- Scripts da aplicação mantidos exatamente como no projeto original -->
+</body>
+</html>
