@@ -1,1 +1,178 @@
-
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SanearCheck 3D | Auditoria Hidráulica</title>
+<meta name="theme-color" content="#041226">
+<style>
+:root{
+  --bg:#041226;--surface:#071a31;--surface-2:#0a2340;--surface-3:#102d4b;
+  --border:#17436a;--text:#f3f8ff;--muted:#9bb8d4;--cyan:#08c8f0;
+  --cyan-strong:#079de0;--green:#27e36b;--red:#fb7185;--amber:#fbbf24;
+  --radius:16px;--shadow:0 18px 50px rgba(0,0,0,.22)
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 75% -20%,rgba(14,165,233,.13),transparent 42%),var(--bg);color:var(--text);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input,select{font:inherit}
+button{cursor:pointer}
+.app{max-width:1500px;margin:auto;padding:22px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 20px;background:rgba(14,23,39,.92);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow)}
+.brand{display:flex;align-items:center;gap:13px;min-width:0}
+.brand-mark{width:54px;height:54px;flex:none;border-radius:15px;display:grid;place-items:center;background:transparent;border:none;box-shadow:none}
+.brand-name{font-size:19px;font-weight:800;letter-spacing:-.7px;line-height:1.15}
+.brand-name span{color:var(--cyan)}
+.topbar{background:linear-gradient(110deg,rgba(7,26,49,.98),rgba(4,18,38,.96));border-color:#16466e}
+.panel{border-color:#173b5b}
+.btn-primary{background:linear-gradient(110deg,#078fc9,#08c8f0);color:#031426}
+.metric-value{color:#eafaff}
+.brand-sub{color:var(--muted);font-size:11px;letter-spacing:1.4px;margin-top:5px}
+.header-right{display:flex;align-items:center;gap:12px}
+.version{color:var(--muted);font-size:12px}
+.status{display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.5px;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);color:var(--green)}
+.status:before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 12px currentColor}
+.page-intro{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:28px 2px 18px}
+.eyebrow{color:var(--cyan);font-size:11px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase}
+h1{font-size:clamp(25px,3vw,34px);letter-spacing:-1.2px;line-height:1.12;margin:7px 0}
+.page-intro p{margin:0;color:var(--muted);max-width:650px}
+.tag{border:1px solid var(--border);border-radius:9px;padding:8px 11px;color:#b9c9dc;font-size:12px;white-space:nowrap}
+.layout{display:grid;grid-template-columns:minmax(310px,390px) minmax(0,1fr);gap:18px;align-items:start}
+.stack{display:grid;gap:16px;min-width:0}
+.panel{background:linear-gradient(180deg,rgba(18,31,50,.96),rgba(14,23,39,.98));border:1px solid var(--border);border-radius:var(--radius);padding:19px;box-shadow:var(--shadow);min-width:0}
+.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:17px}
+.panel-title{font-size:14px;font-weight:750;letter-spacing:-.2px;margin:0}
+.panel-subtitle{font-size:12px;color:var(--muted);margin-top:4px}
+.step{font-size:10px;font-weight:800;letter-spacing:1px;color:var(--cyan);background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.18);border-radius:7px;padding:5px 7px;white-space:nowrap}
+.form-section{font-size:10px;text-transform:uppercase;letter-spacing:1.25px;font-weight:800;color:#8ea6c1;margin:18px 0 10px}
+.field{display:grid;grid-template-columns:minmax(0,1fr) minmax(112px,145px);align-items:center;gap:12px;margin:11px 0}
+.field label{font-size:12px;color:#c0cfe0}
+.field input,.field select{width:100%;min-width:0;background:#091321;color:var(--text);border:1px solid #2a3b52;border-radius:9px;padding:10px 11px;text-align:right;outline:none;transition:border-color .2s,box-shadow .2s}
+.field select{text-align:left}
+.field input:focus,.field select:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(56,189,248,.1)}
+.actions{display:flex;gap:9px;margin-top:17px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 13px;border-radius:10px;border:1px solid transparent;font-weight:750;font-size:12px;transition:transform .15s,background .15s}
+.btn:hover{transform:translateY(-1px)}
+.btn-primary{background:linear-gradient(135deg,#0ea5e9,#0284c7);color:white;box-shadow:0 7px 20px rgba(14,165,233,.16)}
+.btn-secondary{background:#18263a;border-color:#30435c;color:#dce8f5}
+.btn-success{background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.28);color:var(--green)}
+.btn-block{width:100%}
+.file-input{display:none}
+.file-label{flex:1}
+.validation{display:flex;gap:11px;align-items:flex-start;padding:13px;border-radius:11px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);color:#a7f3d0}
+.validation.fail{background:rgba(251,113,133,.08);border-color:rgba(251,113,133,.25);color:#fecdd3}
+.validation-icon{font-size:17px;line-height:1.2}
+.validation strong{display:block;font-size:12px;margin-bottom:3px}
+.validation p{margin:0;font-size:12px;color:inherit;opacity:.88}
+.report{white-space:pre-wrap;overflow-wrap:anywhere;background:#091321;border:1px solid #24354b;border-radius:11px;padding:15px;color:#c8d8ea;font:12px/1.75 ui-monospace,SFMono-Regular,Consolas,monospace;min-height:120px}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.metric{background:linear-gradient(180deg,#121f32,#0e1727);border:1px solid var(--border);border-radius:14px;padding:16px;min-width:0}
+.metric-top{display:flex;align-items:center;justify-content:space-between;gap:7px;color:var(--muted);font-size:11px}
+.metric-icon{display:grid;place-items:center;width:29px;height:29px;border-radius:9px;background:rgba(56,189,248,.1);color:var(--cyan);font-size:15px}
+.metric-value{font-size:clamp(19px,2.2vw,27px);font-weight:800;letter-spacing:-.9px;margin:10px 0 2px;overflow-wrap:anywhere}
+.metric-note{font-size:11px;color:var(--muted)}
+.select-panel{display:flex;align-items:center;gap:14px}
+.select-panel label{font-weight:700;font-size:12px;white-space:nowrap}
+.select-panel select{flex:1;min-width:0;background:#091321;border:1px solid #2a3b52;border-radius:9px;color:var(--text);padding:10px}
+.viewport-panel{padding:0;overflow:hidden}
+.viewport-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:17px 19px;border-bottom:1px solid var(--border)}
+.viewport-heading{font-weight:750}
+.viewport-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.live-label{font-size:10px;letter-spacing:1px;font-weight:800;color:var(--green)}
+.viewport{height:420px;position:relative;background:radial-gradient(ellipse at 50% 45%,#10263a 0%,#091321 58%,#080e19 100%);overflow:hidden}
+.viewport:before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(56,189,248,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,.045) 1px,transparent 1px);background-size:34px 34px;mask-image:linear-gradient(transparent,#000 20%,#000 80%,transparent);pointer-events:none}
+#viewport3d{position:absolute;inset:0;width:100%;height:100%;display:block}
+.legend{position:absolute;top:14px;left:14px;z-index:2;display:grid;gap:8px;padding:11px 12px;border:1px solid rgba(73,100,130,.55);border-radius:11px;background:rgba(8,14,25,.84);backdrop-filter:blur(10px);font-size:11px;color:#c2d1e2}
+.legend-item{display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:3px;background:var(--cyan)}
+.dot.water{background:#0ea5e9}.dot.limit{background:var(--red)}
+.viewport-help{position:absolute;right:14px;bottom:12px;z-index:2;padding:6px 9px;border-radius:8px;background:rgba(8,14,25,.8);color:#9aadc4;font-size:10px}
+.blocked{position:absolute;z-index:3;left:50%;top:50%;transform:translate(-50%,-50%);width:max-content;max-width:90%;text-align:center;padding:15px 18px;border:1px solid rgba(251,113,133,.7);border-radius:12px;background:rgba(65,16,31,.9);color:#fecdd3;font-weight:800;font-size:12px;display:none}
+.blocked span{display:block;font-weight:500;font-size:11px;margin-top:5px}
+.viewport-footer{display:flex;justify-content:space-between;gap:12px;padding:12px 18px;border-top:1px solid var(--border);color:var(--muted);font-size:11px}
+.vtabs{display:flex;gap:6px;padding:10px 19px 0;border-bottom:1px solid var(--border)}
+.vtab{background:transparent;border:1px solid transparent;border-bottom:none;color:var(--muted);padding:8px 14px;border-radius:9px 9px 0 0;font-weight:750;font-size:12px;cursor:pointer;font-family:inherit}
+.vtab.ativa{background:#18263a;border-color:#30435c;color:#e6f0fa}
+.mapa-bar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:10px 19px;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted)}
+.mapa-bar label{display:flex;align-items:center;gap:7px}
+.mapa-bar select,.mapa-bar input,.dxf-opcoes select{background:#0b1626;border:1px solid #30435c;color:#e6f0fa;border-radius:8px;padding:6px 8px;font-size:12px;font-family:inherit}
+.mapa-bar input{width:74px}
+.mapa-area{position:relative;height:420px;background:#091321;isolation:isolate;z-index:0}
+#mapaRede{position:absolute;inset:0}
+.mapa-msg{position:absolute;inset:0;z-index:500;display:none;align-items:center;justify-content:center;text-align:center;padding:24px;color:#c2d1e2;background:rgba(8,14,25,.88);font-size:13px;line-height:1.6}
+.mapa-info{padding:10px 19px;font-size:12px;color:#c2d1e2;border-top:1px solid var(--border);display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.num-wrap{background:transparent;border:none}
+.z-baixo .num-trecho{width:9px;height:9px;font-size:0;border-width:1px;box-shadow:none}
+.z-baixo .seta-trecho{display:none}
+.mapa-area{height:540px!important}
+.num-trecho{width:20px;height:20px;border:2px solid #fff;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;box-shadow:0 0 0 1.5px rgba(0,0,0,.55);cursor:pointer}
+.num-trecho.sel{box-shadow:0 0 0 3px #fff,0 0 0 5px rgba(0,0,0,.5)}
+.mapa-leg{background:rgba(11,22,38,.88);color:#e6f0fa;padding:7px 10px;border-radius:8px;font-size:11px;line-height:1.7}
+.mapa-leg i{display:inline-block;width:18px;height:5px;border-radius:3px;margin-right:7px;vertical-align:middle}
+.seta-trecho{color:#fff;font-size:13px;text-shadow:0 0 3px #000,0 0 3px #000;line-height:16px;text-align:center}
+.leaflet-container{font-family:inherit;background:#091321}
+.dxf-layer{display:flex;gap:8px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;cursor:pointer}
+.dxf-layer span{color:var(--muted)}
+.dxf-opcoes{display:flex;flex-wrap:wrap;gap:14px;margin:12px 0;font-size:12px;color:var(--muted);align-items:center}
+.dxf-opcoes label{display:flex;align-items:center;gap:7px}
+/* MODAIS BLINDADOS PARA IPHONE / MOBILE */
+.modal-backdrop{position:fixed;inset:0;background:rgba(2,6,14,.82);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:12px;z-index:9999;overflow-y:auto}
+.modal-box{width:min(560px,100%);max-height:90vh;background:#101b2d;border:1px solid #30435b;border-radius:18px;padding:18px;box-shadow:0 25px 90px #0009;display:flex;flex-direction:column;overflow-y:auto;margin:auto}
+.modal-box .report{margin:15px 0}
+#dxfLayers{max-height:160px!important;overflow-y:auto!important;border:1px solid var(--border);border-radius:10px;padding:6px}
+footer{display:flex;justify-content:space-between;gap:12px;margin:22px 3px 4px;color:#6f849d;font-size:11px}
+@media(max-width:1050px){.layout{grid-template-columns:minmax(280px,340px) minmax(0,1fr)}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.viewport{height:370px}}
+@media(max-width:760px){.app{padding:12px}.topbar{padding:13px;border-radius:15px}.brand-mark{width:40px;height:40px}.brand-name{font-size:16px}.brand-sub{font-size:9px;letter-spacing:1px}.version{display:none}.page-intro{display:block;margin:23px 2px 16px}.page-intro .tag{display:inline-block;margin-top:12px}.layout{grid-template-columns:1fr}.stack{gap:13px}.panel{padding:15px}.metrics{gap:8px}.metric{padding:12px}.metric-value{font-size:23px}.viewport{height:330px}.viewport-head{padding:14px}.field{grid-template-columns:minmax(0,1fr) minmax(115px,42%)}footer{flex-direction:column}.select-panel{align-items:flex-start;flex-direction:column}.select-panel select{width:100%}}
+@media(max-width:390px){.header-right .status{font-size:9px;padding:6px 8px}.brand{gap:9px}.brand-sub{letter-spacing:.4px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.field{gap:7px}.field label{font-size:11px}.actions .btn{font-size:11px;padding:10px 9px}.legend{font-size:10px;top:8px;left:8px}}
+/* Impressão A4: relatório técnico sem o modelo 3D; mantém a interface e o laudo consolidado */
+#folha-timbrada{display:none}
+@media print{
+ @page{size:A4 portrait;margin:12mm}
+ body > *{display:none!important}
+ body .app{display:block!important}
+ body .app > *{display:none!important}
+ body .app #folha-timbrada{display:block!important;break-before:avoid!important;page-break-before:avoid!important}
+ #folha-timbrada *{visibility:visible!important}
+ html,body{background:#fff!important;color:#111827!important;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ body *{visibility:visible!important;box-shadow:none!important;text-shadow:none!important}
+ .app{display:block!important;max-width:none!important;width:100%!important;margin:0!important;padding:0!important;background:#fff!important;color:#111827!important}
+ .topbar{background:#fff!important;color:#334155!important;border:1px solid #315b83!important;border-bottom:1px solid #315b83!important;border-radius:14px!important;break-inside:avoid;padding:12px 16px!important}
+ .brand-name,.topbar h1,.topbar h2{color:#8b929b!important}
+ .brand-mark,.logo{background:#fff!important;color:#08bfe8!important;border:1px solid #08bfe8!important}
+ .page-intro{margin:12px 0!important;break-after:avoid}
+ .layout{display:block!important}
+ .stack{display:block!important}
+ .panel,.metric{background:#fff!important;color:#536579!important;border:1px solid #315b83!important;border-left:1px solid #315b83!important;border-radius:12px!important;margin:0 0 10px!important;break-inside:avoid;padding:12px!important}
+ .panel-title,.viewport-heading,.metric-value{color:#9aa1aa!important}
+ .panel-title{border-bottom:1px solid #d8e2eb!important;padding-bottom:5px!important}
+ .panel-subtitle,.viewport-sub,.metric-top,.metric-note,.field label,.viewport-footer,footer{color:#718399!important}
+ .field input,.field select,.select-panel select{background:#fff!important;color:#111827!important;border:1px solid #cbd5e1!important}
+ .actions,.file-input,.file-label,.modal-backdrop,.viewport-help,.legend,.blocked{display:none!important}
+ .viewport-panel{display:none!important}
+ .viewport,#viewport3d{display:none!important}
+ .viewport-footer{display:none!important}
+ footer{display:flex!important;margin-top:8px!important;break-after:page}
+ #folha-timbrada{display:block!important;position:static!important;inset:auto!important;width:100%!important;background:#fff!important;color:#111827!important;font:9pt Arial,sans-serif;break-before:avoid!important;page-break-before:avoid!important;margin-top:0!important;padding-top:0!important;}
+ .timbrado-header{display:flex;justify-content:space-between;gap:15px;background:#fff!important;color:#687786!important;border:1px solid #315b83!important;border-bottom:1px solid #315b83!important;padding:12px;border-radius:12px;margin-bottom:12px;break-inside:avoid}
+ .timbrado-header *{color:#687786!important}
+ .timbrado-header h1{color:#08bfe8!important}
+ .timbrado-title h1{font-size:13pt;color:#929aa4;margin:0 0 4px}.timbrado-title p{font-size:8pt;color:#475569;margin:2px 0}
+ .timbrado-box{border:1px solid #315b83;border-left:1px solid #315b83;background:#fff!important;border-radius:10px;padding:8px;margin-bottom:9px;font-size:8pt}
+ .timbrado-box h3{font-size:9pt;color:#929aa4;border-bottom:1px solid #d8e2eb;padding-bottom:4px;margin:0 0 6px}
+ .timbrado-table{width:100%;border-collapse:collapse;margin:6px 0;table-layout:fixed}.timbrado-table thead{display:table-header-group}.timbrado-table tr{break-inside:avoid;page-break-inside:avoid}.timbrado-table th,.timbrado-table td{border:1px solid #b7d4e2;padding:4px;font-size:7pt;text-align:left;overflow-wrap:anywhere}
+ .timbrado-table tbody tr:nth-child(even){background:#f7fafc!important}
+ .timbrado-table th{background:#fff!important;color:#8b929b!important;border-color:#315b83!important}.timbrado-status{padding:7px;text-align:center;font-weight:bold;border-radius:4px;margin:10px 0}
+ .timbrado-aprovado{background:#dcfce7!important;color:#166534!important;border:1px solid #86efac}.timbrado-reprovado{background:#fee2e2!important;color:#991b1b!important;border:1px solid #fca5a5}
+ .timbrado-footer{display:flex;justify-content:space-between;gap:10px;border-top:2px solid #08aeca;padding-top:7px;color:#46627b;font-size:7pt}
+ .app{display:block!important}
+ .app > *{display:none!important}
+ .app #folha-timbrada{display:block!important;position:static!important;break-before:avoid!important;page-break-before:avoid!important}
+ #folha-timbrada .timbrado-header{display:flex!important}
+}
+</style>
+</head>
+<body>
+<div class="app" role="application" aria-label="SanearCheck 3D Aplicação de Auditoria">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true" style="background:transparent;border:none;box-shadow:none;">
+        <img src="data:image/png;base64,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K+ItGbonvhO02vAn3vl+iAOvkm3/VMLk8m4oZXhiRF4C4INEYcYnP8SyaCzAFjwAvHMC2sR5JMA86SUgDDu6IT4iHmPiblZfs8GwFFFr65oTjfxNWmrjJXBD2MFsfG8LRGhbX7S8G263S4KDvZlR0I8u4q9VLoMs6TYzGtuI74bu3GENc1k8YPt3MEzCRRr5Q5RXoV7Xw2eNhGi4U+YG9Urw0PMgwNY+Wb1UiCb9pkrVqiUr0o5GuRtJ6LW8WgB5p88jrf1NaYsX0gY0urfI+tfTGn0E795EeNfGB+GV/grkjjQxOA65+04k06+9Nti180RjYjXZWqUJW5mR5rC0B6c/9bZ82d5x/0b691D+rTflGfa6K1h2nZ/e0jVvK09b55l9WqFq41qD8L4XQ9pU699+J03N7L4xX+T5hXm5J4N4x3wT7o80fU+Nf+3z9l9Lde31/Vvd90/d+9/r3T6/T+89c//8N/+w+9+Z/f/Z7e/T3d9/+/576e3t784+a+tNvf/7//b36p7v7/+6//7r/f/n//7f//f//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//v//up500$.json
